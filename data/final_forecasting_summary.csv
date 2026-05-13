@@ -1,0 +1,2 @@
+Final_Model,RMSE,R2,MAPE,sMAPE,WAPE,Reason_Selected
+Weekly KNN,5741.21,0.404,30.2,30.25,27.4,Best-performing weekly model; KNN tuning did not improve beyond the original setup
