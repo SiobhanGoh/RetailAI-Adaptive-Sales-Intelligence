@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="338" viewBox="0 0 1200 338">
+<defs><linearGradient id="a"><stop stop-color="#D88BA7"/><stop offset="1" stop-color="#AE92BA"/></linearGradient></defs>
+<rect width="1200" height="338" rx="18" fill="#171A24"/>
+<text x="55" y="44" font-size="23" font-weight="700" font-family="Arial" fill="#F9F7FA">System architecture</text>
+<g font-family="Arial" font-size="17" text-anchor="middle">
+<rect x="40" y="105" width="230" height="80" rx="12" fill="#273047" stroke="#D88BA7"/><text x="155" y="137" fill="#fff">CSV / Excel</text><text x="155" y="161" fill="#EBC2D0" font-size="14">Input + sample data</text>
+<rect x="340" y="105" width="240" height="80" rx="12" fill="#273047" stroke="#AE92BA"/><text x="460" y="135" fill="#fff">Schema mapping</text><text x="460" y="159" fill="#EBC2D0" font-size="14">&amp; capability detection</text>
+<rect x="650" y="85" width="250" height="120" rx="12" fill="#273047" stroke="#D88BA7"/><text x="775" y="113" fill="#fff">Analytics workspace</text><text x="775" y="138" fill="#D2D1DC" font-size="14">KPIs · segments · trends</text><text x="775" y="161" fill="#D2D1DC" font-size="14">Forecasting · similarity</text><text x="775" y="182" fill="#D2D1DC" font-size="14">recommendations</text>
+<rect x="965" y="105" width="205" height="80" rx="12" fill="#273047" stroke="#AE92BA"/><text x="1068" y="138" fill="#fff">Streamlit +</text><text x="1068" y="162" fill="#EBC2D0" font-size="14">PDF reporting</text>
+</g><path d="M272 145 H334 M582 145 H642 M902 145 H958" stroke="#D88BA7" stroke-width="3" fill="none"/><g fill="#D88BA7"><path d="M334 145l-9 -6v12z"/><path d="M642 145l-9 -6v12z"/><path d="M958 145l-9 -6v12z"/></g>
+<text x="58" y="290" font-family="Arial" font-size="14" fill="#B8C2D1">Prototype workflow · some historical forecasts need re-evaluation before being presented as valid future forecasts.</text></svg>
