@@ -324,6 +324,14 @@ def render(df):
     intelligence = generate_forecast_intelligence(weekly_df, prediction_df, metrics, future_df)
 
     st.subheader("Forecast Model KPIs")
+    st.caption(
+        "These errors measure one-week-ahead predictions on the final 20% of history, using earlier observed sales. "
+        "The next four weeks are recursive estimates and may have larger errors."
+    )
+    st.caption(
+        f"Previous-week baseline MAE: {metrics['Naive_MAE']:,.2f}; scaled KNN MAE: {metrics['MAE']:,.2f}. "
+        "Confidence and risk labels below are planning heuristics, not probabilities or prediction intervals."
+    )
 
     c1, c2, c3, c4 = st.columns(4)
 

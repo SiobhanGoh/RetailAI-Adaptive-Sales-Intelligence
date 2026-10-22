@@ -1064,7 +1064,8 @@ def build_pdf_report(df, full_df, dataset_type, filters):
 
                 metric_table = [
                     ["Metric", "Value", "Meaning"],
-                    ["Model", "Weekly KNN", "Forecasting model used"],
+                    ["Model", "Scaled Weekly KNN", "Forecasting model used"],
+                    ["Naive MAE", f"{metrics['Naive_MAE']:,.2f}", "Previous-week sales baseline"],
                     ["RMSE", f"{metrics['RMSE']:,.2f}", "Large-error sensitivity"],
                     ["MAE", f"{metrics['MAE']:,.2f}", "Average forecast error"],
                     ["R²", f"{metrics['R2']:.4f}", "Model signal strength"],
@@ -1073,6 +1074,12 @@ def build_pdf_report(df, full_df, dataset_type, filters):
                 ]
 
                 add_subsection_title(story, "Forecast Model KPIs", styles)
+                add_callout(
+                    story, "Evaluation scope",
+                    "Errors describe one-week-ahead predictions on the final 20% of history, using earlier observed sales. "
+                    "Four-week future estimates are recursive and may have larger errors. Risk/confidence labels are "
+                    "heuristics, not calibrated probabilities or prediction intervals.", styles, tone="blue",
+                )
                 add_table(
                     story,
                     metric_table,

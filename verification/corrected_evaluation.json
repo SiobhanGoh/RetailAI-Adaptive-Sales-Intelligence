@@ -1,0 +1,27 @@
+{
+  "source_sha256": "2f7bb311a7646e45f967ff51747335616cd9105bc80d4d9866308d318d132cb1",
+  "raw_rows": 9800,
+  "cleaned_rows": 9800,
+  "sales_total": 2261536.7827,
+  "first_order_date": "2017-11-08",
+  "eligible_weeks": 197,
+  "test_start": "2018-04-01",
+  "test_end": "2018-12-30",
+  "metrics": {
+    "Model": "Scaled Weekly KNN",
+    "Evaluation": "Chronological one-week-ahead holdout; prior observed weeks available",
+    "Train_Weeks": 157,
+    "Test_Weeks": 40,
+    "Naive_MAE": 6410.25147,
+    "Naive_RMSE": 7448.076282251914,
+    "RMSE": 5741.205804994743,
+    "MAE": 4200.769137,
+    "R2": 0.4039503369481867,
+    "MAPE": 30.20314989845646,
+    "sMAPE": 30.251936706801537,
+    "WAPE": 27.402230518160746,
+    "Bias": -1939.948864
+  },
+  "evaluation": "Fixed five-neighbour scaled KNN; final 20% chronological one-step evaluation; no tuning in this repair.",
+  "limitations": "Retrospective data already explored historically; not external validation. Four-step future error is not estimated here."
+}

@@ -5,6 +5,9 @@ import numpy as np
 
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from utils.date_utils import parse_dates
 
 
 FEATURE_COLS = [
@@ -53,10 +56,7 @@ def create_weekly_sales_data(df):
 
     working_df = df.copy()
 
-    working_df["Order_Date"] = pd.to_datetime(
-        working_df["Order_Date"],
-        errors="coerce"
-    )
+    working_df["Order_Date"] = parse_dates(working_df["Order_Date"])
 
     working_df["Sales"] = pd.to_numeric(
         working_df["Sales"],
@@ -77,6 +77,7 @@ def create_weekly_sales_data(df):
     )
 
     weekly_df = weekly_df.rename(columns={"Order_Date": "Week", "Sales": "Weekly_Sales"})
+    sales_history = weekly_df["Weekly_Sales"].tolist()
 
     if len(weekly_df) < 20:
         return None
@@ -95,10 +96,13 @@ def create_weekly_sales_data(df):
 
     for window in [2, 4, 8]:
         weekly_df[f"rolling_mean_{window}"] = weekly_df["Weekly_Sales"].shift(1).rolling(window).mean()
-        weekly_df[f"rolling_std_{window}"] = weekly_df["Weekly_Sales"].shift(1).rolling(window).std()
+        weekly_df[f"rolling_std_{window}"] = weekly_df["Weekly_Sales"].shift(1).rolling(window).std(ddof=0)
 
-    weekly_df["diff_1"] = weekly_df["Weekly_Sales"].diff(1)
-    weekly_df["pct_change_1"] = weekly_df["Weekly_Sales"].pct_change(1)
+    previous = weekly_df["Weekly_Sales"].shift(1)
+    before_previous = weekly_df["Weekly_Sales"].shift(2)
+    weekly_df["diff_1"] = previous - before_previous
+    weekly_df["pct_change_1"] = (previous - before_previous) / before_previous.replace(0, np.nan)
+    weekly_df.loc[before_previous.eq(0), "pct_change_1"] = 0.0
 
     weekly_df = weekly_df.replace([np.inf, -np.inf], np.nan)
     weekly_df = weekly_df.dropna()
@@ -106,6 +110,7 @@ def create_weekly_sales_data(df):
     if len(weekly_df) < 10:
         return None
 
+    weekly_df.attrs["sales_history"] = sales_history
     return weekly_df
 
 
@@ -144,7 +149,7 @@ def make_future_feature_row(next_week, week_index, sales_history):
 
 def generate_future_forecast(model, weekly_df, periods=4):
     last_week = weekly_df["Week"].max()
-    sales_history = weekly_df["Weekly_Sales"].tolist()
+    sales_history = list(weekly_df.attrs.get("sales_history", weekly_df["Weekly_Sales"].tolist()))
 
     future_rows = []
 
@@ -152,7 +157,7 @@ def generate_future_forecast(model, weekly_df, periods=4):
         next_week = last_week + pd.Timedelta(weeks=i)
         feature_row = make_future_feature_row(
             next_week=next_week,
-            week_index=len(sales_history),
+            week_index=int(weekly_df["weeks_since_start"].iloc[-1]) + i,
             sales_history=sales_history
         )
 
@@ -590,11 +595,11 @@ def train_weekly_knn_forecast(df):
 
     n_neighbors = min(5, len(X_train))
 
-    model = KNeighborsRegressor(
+    model = make_pipeline(StandardScaler(), KNeighborsRegressor(
         n_neighbors=n_neighbors,
         weights="uniform",
         metric="euclidean"
-    )
+    ))
 
     model.fit(X_train, y_train)
 
@@ -628,7 +633,12 @@ def train_weekly_knn_forecast(df):
     bias = np.mean(predictions - y_test)
 
     metrics = {
-        "Model": "Weekly KNN",
+        "Model": "Scaled Weekly KNN",
+        "Evaluation": "Chronological one-week-ahead holdout; prior observed weeks available",
+        "Train_Weeks": len(X_train),
+        "Test_Weeks": len(X_test),
+        "Naive_MAE": float(mean_absolute_error(y_test, X_test["lag_1"])),
+        "Naive_RMSE": float(mean_squared_error(y_test, X_test["lag_1"]) ** 0.5),
         "RMSE": rmse,
         "MAE": mae,
         "R2": r2,
@@ -645,11 +655,11 @@ def train_weekly_knn_forecast(df):
         "Error": y_test.values - predictions,
     })
 
-    final_model = KNeighborsRegressor(
+    final_model = make_pipeline(StandardScaler(), KNeighborsRegressor(
         n_neighbors=min(5, len(X)),
         weights="uniform",
         metric="euclidean"
-    )
+    ))
 
     final_model.fit(X, y)
 

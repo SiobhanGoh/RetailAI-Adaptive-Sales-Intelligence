@@ -9,7 +9,7 @@
 
 **RetailAI** is a modular Python/Streamlit portfolio prototype for exploring retail transaction data. It combines **business intelligence**, **feature-aware data ingestion**, **sales forecasting**, **product-similarity recommendations** and **downloadable executive reporting** in a single workflow. Available analytical sections depend on the fields in the uploaded dataset.
 
-> **Project status:** Working analytics prototype. Forecasting evaluation is being corrected; see [Evaluation and limitations](#evaluation-and-limitations) before interpreting historical model scores.
+> **Project status:** Analytics prototype with corrected date handling and historical-only forecast features. See [Evaluation and limitations](#evaluation-and-limitations) for the retrospective evaluation protocol and remaining limits.
 
 ## At a glance
 
@@ -53,6 +53,14 @@ requirements.txt
 
 The project is arranged as a multi-page Streamlit application with separate data, modelling, visualisation and reporting utilities.
 </details>
+
+## App screenshots
+
+Actual local app screens captured with the corrected bundled-data pipeline on 22 October 2026.
+
+![RetailAI overview with 9,800 records](assets/app-overview.png)
+
+![Forecast evaluation and baseline comparison](assets/app-forecast.png)
 
 ## Methods and evidence
 
@@ -104,20 +112,35 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-The repository's dependencies are not yet locked to a tested installation environment. Use a clean Python virtual environment; a tested version matrix will be added following compatibility checks.
+Use Python 3.12 and the versions in `requirements.txt`. Run `python -m pytest -q tests` after installing `pytest` to check date handling and forecasting invariants.
+
+## Verified repair results
+
+The bundled dataset now retains **9,800 records**, with sales totalling **2,261,536.7827**. The first row's order date is correctly read as **8 November 2017**. Six data/forecast regression checks and five default-page checks passed on Windows with Python 3.12.
+
+| Corrected one-week-ahead evaluation | Result |
+|---|---:|
+| Training / evaluation weeks | 157 / 40 |
+| Scaled KNN MAE | 4,200.77 |
+| Scaled KNN RMSE | 5,741.21 |
+| Scaled KNN R² | 0.4040 |
+| Scaled KNN WAPE | 27.40% |
+| Previous-week baseline MAE | 6,410.25 |
+| Previous-week baseline RMSE | 7,448.08 |
+
+Reproduce with `python scripts/verify_repair.py`. [Aggregate evidence](verification/corrected_evaluation.json) and [dated predictions](verification/one_step_predictions.csv) are included. These reproduce historical research values after aligning the app pipeline; the historical selection holdout was already explored, so this is **not a new independent accuracy claim**.
 
 ## Evaluation and limitations
 
-**Documented issues being addressed:**
+**Corrections in this revision:**
 
-- **Date parsing:** the bundled Superstore file uses day/month/year dates. The current default parser can drop valid records; the audit observed **3,959** rows in the live view versus **9,800** in the underlying source. Dashboard totals from the current default view are therefore incomplete.
-- **Forecast target leakage:** the app's unshifted `Weekly_Sales.diff(1)` and `.pct_change(1)` contain the target week's value. They should not be used as features to claim future forecast accuracy. Live model scores are withheld from the project summary until the code is corrected and re-evaluated.
-- **Research-versus-app mismatch:** the historical benchmark and live app do not use identical scaling and input processing. Their metrics are not interchangeable.
-- **Interpretation limits:** similarity scores are not purchase probabilities; rule-based business-health/forecast-confidence labels are not calibrated estimates.
+- The bundled day/month/year dates use an explicit format. Uploaded data exposes a day-first/month-first choice; ISO dates retain year-month-day ordering. Invalid order dates are reported.
+- All forecast lags, rolling statistics and changes use only observations before the predicted week. Historical and future features use the same standard-deviation definition and calendar index.
+- Both evaluation and final forecasting use a StandardScaler + five-neighbour KNN pipeline. Evaluation scaling is fitted only on the training period.
+- The final 20% of eligible weeks is evaluated chronologically, with previous observed weeks available for each one-week-ahead prediction. A previous-week-sales baseline is scored on those same weeks. The model settings were fixed before this repair's evaluation and were not tuned against its results.
+- Four-week future forecasts are recursive. Their errors are not established by the one-week-ahead evaluation, and can compound over the horizon.
 
-**Repair sequence:** correct strict day-first parsing → shift historical-only features → ensure training and future prediction use identical transformations → rerun chronological baselines/holdout without repeated tuning → regression-test app pages and PDF outputs → update benchmarks and screenshots.
-
-This project demonstrates an implemented analytics product and a commitment to honest evaluation, **not verified business gains or production-grade forecasting**.
+**Remaining limits:** These are retrospective estimates on an already explored dataset, not independent external validation. The archived research CSVs above describe a different historical experiment and are not the corrected application's scores. Similarity scores are not purchase probabilities; confidence, inventory-pressure and business-health labels are heuristics, not calibrated probabilities or measured stock outcomes.
 
 <details>
 <summary><strong>Data provenance and responsible reuse</strong></summary>
@@ -127,10 +150,12 @@ The demo includes a Superstore-labelled CSV. Verify its licence and redistributi
 
 ## Next improvements
 
-- [ ] Correct date parsing and forecast leakage, then regenerate valid results.
-- [ ] Add real app screenshots and a short optional demo clip.
-- [ ] Document tested versions, sample-data provenance and unit tests.
-- [ ] Clean tracked Python bytecode and generated artefacts without breaking deployment.
+- [x] Correct date parsing, forecast leakage, scaling and prediction-time feature alignment.
+- [x] Add real app screenshots.
+- [x] Add regression checks for dates, leakage, feature parity and chronological evaluation.
+- [ ] Confirm redistribution terms for the bundled sample data.
+- [x] Remove tracked Python bytecode and ignore future cache files.
+- [ ] Review large generated similarity artefacts before removing them.
 
 ---
 

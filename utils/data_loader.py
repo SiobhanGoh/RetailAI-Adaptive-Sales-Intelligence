@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+from utils.date_utils import parse_dates
 
 from utils.column_mapper import (
     detect_column_map,
@@ -56,8 +57,8 @@ def clean_price_like_column(series):
     )
 
 
-def prepare_adaptive_dataset(raw_df):
-    df = raw_df.copy()
+def prepare_adaptive_dataset(raw_df, *, dayfirst=True, date_format=None):
+    df = normalize_columns(raw_df)
 
     column_map = detect_column_map(df)
     capabilities = detect_capabilities(column_map)
@@ -84,7 +85,10 @@ def prepare_adaptive_dataset(raw_df):
         df["Sales"] = 0
 
     if "Order_Date" in df.columns:
-        df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
+        df["Order_Date"] = parse_dates(df["Order_Date"], dayfirst=dayfirst, date_format=date_format)
+        invalid_dates = int(df["Order_Date"].isna().sum())
+        if invalid_dates:
+            st.warning(f"Excluded {invalid_dates:,} rows with missing or invalid order dates. Check the upload date convention.")
         df = df.dropna(subset=["Order_Date"])
 
     if df.empty:
@@ -97,7 +101,7 @@ def prepare_adaptive_dataset(raw_df):
     if "Ship_Date" not in df.columns:
         df["Ship_Date"] = df["Order_Date"]
 
-    df["Ship_Date"] = pd.to_datetime(df["Ship_Date"], errors="coerce")
+    df["Ship_Date"] = parse_dates(df["Ship_Date"], dayfirst=dayfirst, date_format=date_format)
     df["Ship_Date"] = df["Ship_Date"].fillna(df["Order_Date"])
 
     if "Product_Name" not in df.columns:
@@ -167,7 +171,7 @@ def load_default_data():
     df = pd.read_csv("data/Superstore Sales Dataset.csv")
     df = normalize_columns(df)
 
-    cleaned_df, metadata = prepare_adaptive_dataset(df)
+    cleaned_df, metadata = prepare_adaptive_dataset(df, date_format="%d/%m/%Y")
 
     metadata["dataset_type"] = "transaction"
     metadata["dataset_mode"] = "full_transaction"
@@ -200,7 +204,12 @@ def load_data():
 
     raw_df = normalize_columns(raw_df)
 
-    cleaned_df, metadata = prepare_adaptive_dataset(raw_df)
+    date_convention = st.sidebar.selectbox(
+        "Date convention for uploaded data",
+        ["Day/month/year", "Month/day/year"],
+        help="Choose how ambiguous dates such as 08/11/2026 should be read. ISO year-month-day dates are handled automatically.",
+    )
+    cleaned_df, metadata = prepare_adaptive_dataset(raw_df, dayfirst=date_convention == "Day/month/year")
 
     dataset_mode = metadata["dataset_mode"]
 
