@@ -134,4 +134,4 @@ The demo includes a Superstore-labelled CSV. Verify its licence and redistributi
 
 ---
 
-**Siobhan Goh** · Master of Artificial Intelligence, Monash University Malaysia · [LinkedIn](https://www.linkedin.com/in/siobhangoh/)
+**Siobhan Goh** · Master of Artificial Intelligence, Monash University Malaysia · [LinkedIn](https://www.linkedin.com/in/siobhan-goh/)
