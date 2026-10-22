@@ -112,7 +112,7 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-Use Python 3.12 and the versions in `requirements.txt`. Run `python -m pytest -q tests` after installing `pytest` to check date handling and forecasting invariants.
+Use Python 3.12 and the versions in `requirements.txt`. For Streamlit Community Cloud, select **Python 3.12** under **App settings → General → Python version** so hosting matches the tested environment. The public overview and forecast were verified after applying this setting on 22 October 2026. Run `python -m pytest -q tests` after installing `pytest` to check date handling and forecasting invariants.
 
 ## Verified repair results
 
