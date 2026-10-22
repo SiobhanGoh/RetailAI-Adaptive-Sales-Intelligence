@@ -310,7 +310,7 @@ opacity:0.9;
 
 **Simple reason:** {reason}
 
-**Confidence note:** {confidence_desc}
+**Similarity note:** {confidence_desc}
 
 **Recommendation strength:** {confidence_label}
                     """
@@ -336,6 +336,14 @@ def has_enough_customer_data(df):
 def render(filtered_df, full_df, dataset_type):
     st.title("AI Product Recommendation System")
     st.caption("Find similar products, cross-sell ideas, and product discovery opportunities from your dataset.")
+    with st.expander("What has been evaluated?"):
+        st.write("On the bundled dataset, a chronological held-out basket test found top-5 hit rates "
+                 "of 0.62% for hybrid similarity, 1.49% for content similarity and 4.07% for a "
+                 "training-only popularity baseline. Similarity is useful for exploration, but this "
+                 "test does not establish better purchase recommendations than popularity.")
+        st.caption("Retrospective test: 1,940 eligible seed queries from later orders; known items only. "
+                   "These figures do not describe uploaded datasets or online business impact.")
+        st.markdown("[Protocol and complete results](https://github.com/SiobhanGoh/RetailAI-Adaptive-Sales-Intelligence/blob/main/verification/extended_evaluation.json)")
 
     if filtered_df.empty:
         st.warning("No data matches the selected filters.")
@@ -471,7 +479,7 @@ def render(filtered_df, full_df, dataset_type):
 
     with c4:
         render_summary_card(
-            "Confidence",
+            "Similarity strength",
             confidence_label,
             confidence_desc,
             "🧠",

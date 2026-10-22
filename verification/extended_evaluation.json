@@ -1,0 +1,149 @@
+{
+  "source_sha256": "2f7bb311a7646e45f967ff51747335616cd9105bc80d4d9866308d318d132cb1",
+  "forecast": {
+    "protocol": "Expanding training window; fixed scaled 5-neighbour uniform KNN; recursive horizons 1\u20134.",
+    "origins": 37,
+    "first_origin": "2018-03-25",
+    "last_origin": "2018-12-02",
+    "metrics": {
+      "all": {
+        "knn": {
+          "n": 148,
+          "MAE": 5222.010735405406,
+          "RMSE": 6667.376059459997,
+          "WAPE_pct": 33.99926268731181
+        },
+        "last_week": {
+          "n": 148,
+          "MAE": 6687.063702702703,
+          "RMSE": 8340.18449465518,
+          "WAPE_pct": 43.537872086991534
+        },
+        "last_four_mean": {
+          "n": 148,
+          "MAE": 5674.417343581081,
+          "RMSE": 6854.352998786987,
+          "WAPE_pct": 36.94477388830447
+        }
+      },
+      "1": {
+        "knn": {
+          "n": 37,
+          "MAE": 4872.059487027027,
+          "RMSE": 6431.97367097023,
+          "WAPE_pct": 31.793526764673913
+        },
+        "last_week": {
+          "n": 37,
+          "MAE": 6331.222583783785,
+          "RMSE": 7422.391757534578,
+          "WAPE_pct": 41.31556587242487
+        },
+        "last_four_mean": {
+          "n": 37,
+          "MAE": 5245.381293243243,
+          "RMSE": 6192.493294474928,
+          "WAPE_pct": 34.22970737153558
+        }
+      },
+      "2": {
+        "knn": {
+          "n": 37,
+          "MAE": 4890.164667567567,
+          "RMSE": 6365.143829859696,
+          "WAPE_pct": 32.35912191400813
+        },
+        "last_week": {
+          "n": 37,
+          "MAE": 5703.637918918919,
+          "RMSE": 7903.214193016049,
+          "WAPE_pct": 37.74202451621365
+        },
+        "last_four_mean": {
+          "n": 37,
+          "MAE": 5564.889652702703,
+          "RMSE": 6825.240287221046,
+          "WAPE_pct": 36.82390163752517
+        }
+      },
+      "3": {
+        "knn": {
+          "n": 37,
+          "MAE": 5470.526397297296,
+          "RMSE": 6809.520879604948,
+          "WAPE_pct": 35.606907194714914
+        },
+        "last_week": {
+          "n": 37,
+          "MAE": 7352.6731108108115,
+          "RMSE": 8732.813151641854,
+          "WAPE_pct": 47.85754241475942
+        },
+        "last_four_mean": {
+          "n": 37,
+          "MAE": 5984.410144594594,
+          "RMSE": 7071.960573563867,
+          "WAPE_pct": 38.95170613543974
+        }
+      },
+      "4": {
+        "knn": {
+          "n": 37,
+          "MAE": 5655.2923897297305,
+          "RMSE": 7039.935950305964,
+          "WAPE_pct": 36.166424442275556
+        },
+        "last_week": {
+          "n": 37,
+          "MAE": 7360.721197297296,
+          "RMSE": 9188.035159654662,
+          "WAPE_pct": 47.0728918466108
+        },
+        "last_four_mean": {
+          "n": 37,
+          "MAE": 5902.988283783785,
+          "RMSE": 7279.087552259325,
+          "WAPE_pct": 37.75047602079986
+        }
+      }
+    },
+    "limitations": "Retrospective, previously explored data. Overlapping horizons are dependent. No hyperparameter tuning or independent external claim."
+  },
+  "recommendations": {
+    "protocol": "Chronological basket completion: each known seed predicts other known items in a held-out order. All matrices, TF-IDF vocabulary and popularity use training rows only.",
+    "cutoff": "2018-04-06",
+    "train_rows": 7053,
+    "test_rows": 2747,
+    "training_catalog_size": 1804,
+    "test_orders": 1407,
+    "test_multi_item_orders": 679,
+    "evaluated_seed_queries": 1940,
+    "unknown_seed_queries_excluded": 57,
+    "no_known_targets_excluded": 20,
+    "known_target_fraction_for_known_seeds": 0.9747445536919221,
+    "metrics": {
+      "content": {
+        "hit_rate_at_5": 0.014948453608247423,
+        "precision_at_5": 0.002989690721649485,
+        "recall_at_5": 0.0059555908009516255,
+        "ndcg_at_5": 0.0040658914102307325,
+        "catalog_coverage": 0.7516629711751663
+      },
+      "hybrid": {
+        "hit_rate_at_5": 0.006185567010309278,
+        "precision_at_5": 0.0012371134020618558,
+        "recall_at_5": 0.001599165439371625,
+        "ndcg_at_5": 0.0017227344171808852,
+        "catalog_coverage": 0.9456762749445676
+      },
+      "popularity": {
+        "hit_rate_at_5": 0.040721649484536084,
+        "precision_at_5": 0.008865979381443298,
+        "recall_at_5": 0.016494845360824743,
+        "ndcg_at_5": 0.01342940377338016,
+        "catalog_coverage": 0.0033259423503325942
+      }
+    },
+    "limitations": "Retrospective proxy for product suggestions, not personalised next-purchase or online conversion testing. Cold items excluded from ranking metrics; queries from the same order are dependent. Fixed blend weights, no tuning."
+  }
+}

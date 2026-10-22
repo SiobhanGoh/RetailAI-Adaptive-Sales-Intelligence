@@ -326,12 +326,22 @@ def render(df):
     st.subheader("Forecast Model KPIs")
     st.caption(
         "These errors measure one-week-ahead predictions on the final 20% of history, using earlier observed sales. "
-        "The next four weeks are recursive estimates and may have larger errors."
+        "The next four weeks are recursive estimates and may have larger errors. "
+        "The bundled-data rolling-origin evaluation is linked below."
     )
     st.caption(
         f"Previous-week baseline MAE: {metrics['Naive_MAE']:,.2f}; scaled KNN MAE: {metrics['MAE']:,.2f}. "
         "Confidence and risk labels below are planning heuristics, not probabilities or prediction intervals."
     )
+    with st.expander("Four-week evaluation on the bundled dataset"):
+        st.write("Across 37 historical forecast origins (148 predictions), the fixed KNN model "
+                 "had MAE 5,222.01, versus 6,687.06 for repeating the last week and 5,674.42 for "
+                 "the previous four-week mean. KNN WAPE was 34.00%; fourth-week WAPE was 36.17%.")
+        st.caption("Models and scaling use only the history available at each origin. Later horizons "
+                   "use predicted sales recursively. The dataset was explored before this test; "
+                   "overlapping forecasts are dependent, and these figures are not external validation "
+                   "or performance estimates for uploaded datasets.")
+        st.markdown("[Protocol and complete results](https://github.com/SiobhanGoh/RetailAI-Adaptive-Sales-Intelligence/blob/main/verification/extended_evaluation.json)")
 
     c1, c2, c3, c4 = st.columns(4)
 

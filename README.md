@@ -82,12 +82,12 @@ The original research compared **12 weekly regression model families** on 209 ag
 | R² | 0.404 |
 | WAPE | 27.40% |
 
-Source: [`data/weekly_forecast_benchmark_results.csv`](data/weekly_forecast_benchmark_results.csv) and [`data/final_forecasting_summary.csv`](data/final_forecasting_summary.csv). **These are exploratory research-selection numbers and do not validate the deployed app's forecasting path.** The benchmark's selection holdout was reused for tuning; a clean, frozen evaluation is a planned next step.
+Source: [`data/weekly_forecast_benchmark_results.csv`](data/weekly_forecast_benchmark_results.csv) and [`data/final_forecasting_summary.csv`](data/final_forecasting_summary.csv). **These are exploratory research-selection numbers.** The benchmark's selection holdout was reused for tuning. The corrected one-step reproduction and frozen recursive checks below provide retrospective evidence, not an untouched external assessment.
 </details>
 
 ### 3 · Recommendations
 
-The source contains a customer–product sales pivot for collaborative item similarity, product text transformed with **TF-IDF**, cosine-similarity scoring and a conditional blended recommender. `utils/recommendation_utils.py` uses a **70/30 transaction/content** blend when transaction similarity is sufficiently informative, otherwise a **20/80** blend favouring content. No offline ranking benchmark, conversion uplift or revenue impact has been established.
+The source contains a customer–product sales pivot for collaborative item similarity, product text transformed with **TF-IDF**, cosine-similarity scoring and a conditional blended recommender. `utils/recommendation_utils.py` uses a **70/30 transaction/content** blend when transaction similarity is sufficiently informative, otherwise a **20/80** blend favouring content. A chronological offline basket-completion benchmark is now included below; the popularity baseline performed better. No conversion uplift or revenue impact has been established.
 
 ### 4 · Executive reporting
 
@@ -112,7 +112,7 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-Use Python 3.12 and the versions in `requirements.txt`. For Streamlit Community Cloud, select **Python 3.12** under **App settings → General → Python version** so hosting matches the tested environment. The public overview and forecast were verified after applying this setting on 22 October 2026. Run `python -m pytest -q tests` after installing `pytest` to check date handling and forecasting invariants.
+Use Python 3.12 and the versions in `requirements.txt`. Run `python -m pytest -q tests` after installing `pytest` to check date handling and forecasting invariants.
 
 ## Verified repair results
 
@@ -130,6 +130,30 @@ The bundled dataset now retains **9,800 records**, with sales totalling **2,261,
 
 Reproduce with `python scripts/verify_repair.py`. [Aggregate evidence](verification/corrected_evaluation.json) and [dated predictions](verification/one_step_predictions.csv) are included. These reproduce historical research values after aligning the app pipeline; the historical selection holdout was already explored, so this is **not a new independent accuracy claim**.
 
+## Extended retrospective evaluation · 23 October 2026
+
+Run `python scripts/evaluate_extended.py`. The complete [aggregate results](verification/extended_evaluation.json) and [dated recursive predictions](verification/rolling_origin_predictions.csv) are versioned. Settings were fixed before these checks; no tuning used the new results.
+
+**Recursive forecasts:** 37 expanding-window origins from 25 March to 2 December 2018, each predicting the next four weeks (148 forecast-target pairs). The scaler and KNN are fitted only to history available at each origin. Future lags use predictions, never later actual sales. A regression test also poisons future values to detect leakage through inherited DataFrame history.
+
+| All horizons | MAE | RMSE | WAPE |
+|---|---:|---:|---:|
+| Fixed scaled KNN | 5,222.01 | 6,667.38 | 34.00% |
+| Repeat last observed week | 6,687.06 | 8,340.18 | 43.54% |
+| Previous four-week mean | 5,674.42 | 6,854.35 | 36.94% |
+
+KNN WAPE by horizon: **31.79%, 32.36%, 35.61%, 36.17%** for weeks 1–4. KNN improves aggregate error over both baselines, but the four-week-mean baseline has lower first-horizon RMSE. Forecasts overlap and are not independent samples; the underlying dataset had already been explored.
+
+**Product suggestions:** train through 6 April 2018 (7,053 rows); test later orders (2,747 rows). Each known seed item in a held-out multi-item order is used to retrieve the other known items in that order. Customer–product matrices, TF-IDF vocabulary, metadata and popularity use training data only. Popularity counts distinct training orders per product. Each method returns five candidates, excluding the seed.
+
+| Method | Hit rate@5 | Recall@5 | NDCG@5 | Catalog coverage |
+|---|---:|---:|---:|---:|
+| Hybrid similarity | 0.62% | 0.16% | 0.0017 | 94.57% |
+| Content similarity | 1.49% | 0.60% | 0.0041 | 75.17% |
+| Training popularity | 4.07% | 1.65% | 0.0134 | 0.33% |
+
+There are **1,940 eligible seed queries** from 679 later multi-item orders. Exclusions: 57 unknown seeds and 20 known seeds with no known target; 97.47% of targets for known seeds were in the training catalog. Queries from the same order are dependent. The popularity baseline is stronger on this task; the similarity methods remain exploratory product-discovery features. Wider catalog coverage does not establish better relevance. This test is not personalised next-purchase prediction or an online business-impact study.
+
 ## Evaluation and limitations
 
 **Corrections in this revision:**
@@ -138,9 +162,9 @@ Reproduce with `python scripts/verify_repair.py`. [Aggregate evidence](verificat
 - All forecast lags, rolling statistics and changes use only observations before the predicted week. Historical and future features use the same standard-deviation definition and calendar index.
 - Both evaluation and final forecasting use a StandardScaler + five-neighbour KNN pipeline. Evaluation scaling is fitted only on the training period.
 - The final 20% of eligible weeks is evaluated chronologically, with previous observed weeks available for each one-week-ahead prediction. A previous-week-sales baseline is scored on those same weeks. The model settings were fixed before this repair's evaluation and were not tuned against its results.
-- Four-week future forecasts are recursive. Their errors are not established by the one-week-ahead evaluation, and can compound over the horizon.
+- Four-week future forecasts are recursive. Their retrospective errors are assessed separately in the rolling-origin comparison above and can compound over the horizon.
 
-**Remaining limits:** These are retrospective estimates on an already explored dataset, not independent external validation. The archived research CSVs above describe a different historical experiment and are not the corrected application's scores. Similarity scores are not purchase probabilities; confidence, inventory-pressure and business-health labels are heuristics, not calibrated probabilities or measured stock outcomes.
+**Remaining limits:** These are retrospective estimates on an already explored dataset, not independent external validation. The archived research CSVs describe model selection; some numerical values are reproduced by the corrected one-step path but do not validate future performance. Similarity scores are not purchase probabilities. Recommendation labels describe similarity strength; forecast confidence, inventory-pressure and business-health labels are heuristics, not calibrated probabilities or measured stock outcomes.
 
 <details>
 <summary><strong>Data provenance and responsible reuse</strong></summary>

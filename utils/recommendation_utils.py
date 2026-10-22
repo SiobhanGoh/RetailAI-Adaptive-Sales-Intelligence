@@ -163,10 +163,10 @@ def get_content_recommendations(content_sim, product_name, top_n=5):
 
 def get_confidence_label(score):
     if score >= 0.70:
-        return "Strong Match", "High confidence recommendation"
+        return "Strong Similarity", "High similarity score; not a purchase probability or validated recommendation confidence"
     elif score >= 0.40:
-        return "Moderate Match", "Useful recommendation, but review context"
+        return "Moderate Similarity", "Moderate similarity signal; review the product context"
     elif score > 0:
-        return "Weak Match", "Limited similarity signal"
+        return "Weak Similarity", "Limited similarity signal"
     else:
-        return "Very Weak Match", "Low evidence recommendation"
+        return "No Similarity Signal", "No positive similarity evidence"
