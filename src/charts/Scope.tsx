@@ -99,8 +99,8 @@ export function Scope({
             </feMerge>
           </filter>
           <linearGradient id={`fill-${id}`} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="var(--vfd)" stopOpacity="0.22" />
-            <stop offset="1" stopColor="var(--vfd)" stopOpacity="0" />
+            <stop offset="0" stopColor="var(--amber)" stopOpacity="0.22" />
+            <stop offset="1" stopColor="var(--amber)" stopOpacity="0" />
           </linearGradient>
         </defs>
         {yTicks.map((t) => (

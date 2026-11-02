@@ -1,0 +1,6 @@
+# Only for the archived Python research scripts and their tests.
+# The web app itself needs Node.js; see the README.
+pandas==3.0.1
+numpy==2.3.5
+scikit-learn==1.7.2
+pytest

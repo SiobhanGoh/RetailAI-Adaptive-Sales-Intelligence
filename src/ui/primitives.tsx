@@ -21,7 +21,7 @@ export function useSize<T extends HTMLElement>(): [(el: T | null) => void, { w: 
   return [callback, size, ref]
 }
 
-/** A vacuum-fluorescent readout: lit seven-segment digits over faint unlit "8"s. */
+/** A large figure that counts smoothly to its new value. */
 export function Readout({ value, currency, kind = 'money', size = 'md', label }: { value: number; currency?: Currency; kind?: 'money' | 'count' | 'pct'; size?: 'sm' | 'md' | 'lg' | 'xl'; label: string }) {
   const [shown, setShown] = useState(value)
   const prev = useRef(value)
@@ -52,17 +52,11 @@ export function Readout({ value, currency, kind = 'money', size = 'md', label }:
     else if (a >= 1e5) [digits, suffix] = [(a / 1e3).toFixed(0), 'K']
     else digits = a.toLocaleString('en')
   }
-  const finalParts = kind === 'money' ? readoutParts(value, currency ?? 'NONE') : null
-  const ghostSource = finalParts ? finalParts.digits : digits
-  const ghost = ghostSource.replace(/\d/g, '8').replace(/,/g, '!')
   return (
     <span className={`readout readout-${size}`} role="img" aria-label={label}>
       {prefix && <span className="readout-unit">{prefix}</span>}
-      <span className="readout-digits">
-        <span className="readout-ghost" aria-hidden>{ghost}</span>
-        <span className="readout-lit" aria-hidden>{digits.replace(/,/g, '!')}</span>
-      </span>
-      {suffix && <span className="readout-unit">{suffix}</span>}
+      <span className="readout-digits">{digits}</span>
+      {suffix && <span className="readout-unit readout-suffix">{suffix}</span>}
     </span>
   )
 }
@@ -116,9 +110,9 @@ export function Barcode({ seed, width = 180, height = 34 }: { seed: string; widt
   )
 }
 
-export function Panel({ title, aside, children, className = '' }: { title?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {
+export function Panel({ title, aside, children, className = '', glass = false }: { title?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string; glass?: boolean }) {
   return (
-    <section className={`panel ${className}`}>
+    <section className={`panel ${glass ? 'panel-glass' : 'panel-paper'} ${className}`}>
       {(title || aside) && (
         <header className="panel-head">
           {title && <h3>{title}</h3>}
@@ -139,6 +133,24 @@ export function Empty({ title, children }: { title: string; children: ReactNode 
       </svg>
       <h4>{title}</h4>
       <div>{children}</div>
+    </div>
+  )
+}
+
+/** An order ticket: the figure on the main part, the comparison on the tear-off stub. */
+export function Ticket({ label, children, stub, hero = false, no }: { label: string; children: ReactNode; stub?: ReactNode; hero?: boolean; no?: string }) {
+  return (
+    <div className="ticket-wrap">
+    <div className={`ticket ${hero ? 'ticket-hero' : ''}`}>
+      <div className="ticket-body">
+        <span className="ticket-label">
+          {label}
+          {no && <span className="ticket-no" aria-hidden>{no}</span>}
+        </span>
+        {children}
+      </div>
+      <div className="ticket-stub">{stub}</div>
+    </div>
     </div>
   )
 }

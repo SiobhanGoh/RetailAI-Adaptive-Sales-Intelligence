@@ -16,7 +16,7 @@ def series(n=80):
 
 
 def test_default_data_retains_all_rows_and_correct_dates():
-    raw = pd.read_csv(Path(__file__).resolve().parents[1]/"data/Superstore Sales Dataset.csv")
+    raw = pd.read_csv(Path(__file__).resolve().parents[2]/"data/superstore_sales.csv")
     clean, _ = prepare_adaptive_dataset(raw, date_format="%d/%m/%Y")
     assert len(clean) == len(raw) == 9800
     assert clean.Sales.sum() == pytest.approx(2261536.7827)

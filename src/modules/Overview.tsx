@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Delta, Empty, Panel, Readout, Segmented } from '../ui/primitives'
+import { Delta, Empty, Panel, Readout, Segmented, Ticket } from '../ui/primitives'
 import { Scope } from '../charts/Scope'
-import { Meter, Rings } from '../charts/misc'
+import { ShareStack } from '../charts/misc'
 import { breakdown, pctChange, shareOfTop, weekEnd } from '../engine/aggregate'
 import { findAnomalies } from '../engine/anomalies'
 import { DIMENSION_LABEL } from '../engine/types'
@@ -81,47 +81,35 @@ export function Overview() {
       </header>
 
       <div className="deck">
-        <div className="deck-hero">
-          <span className="deck-label">Net sales</span>
+        <Ticket hero label="Net sales" stub={ds.capabilities.dates ? <Delta value={pctChange(k.net, c?.net)} label={cl} /> : undefined}>
           <Readout value={k.net} currency={currency} size="xl" label={`Net sales ${money(k.net, currency, 'whole')}`} />
-          {ds.capabilities.dates && <Delta value={pctChange(k.net, c?.net)} label={cl} />}
-          {k.returns < 0 && <span className="deck-foot">{money(k.gross, currency)} gross, {money(k.returns, currency)} returns</span>}
-        </div>
-        <div className="deck-grid">
-          <div className="deck-cell">
-            <span className="deck-label">Orders</span>
-            <Readout value={k.orders} kind="count" size="md" label={`${k.orders} orders`} />
-            {ds.capabilities.dates && <Delta value={pctChange(k.orders, c?.orders)} label={cl} />}
-          </div>
-          <div className="deck-cell">
-            <span className="deck-label">Average order</span>
-            <Readout value={k.aov} currency={currency} size="md" label={`Average order ${money(k.aov, currency, 'exact')}`} />
-            {ds.capabilities.dates && <Delta value={pctChange(k.aov, c?.aov)} label={cl} />}
-          </div>
-          {ds.capabilities.customers && (
-            <div className="deck-cell">
-              <span className="deck-label">Customers</span>
-              <Readout value={k.customers} kind="count" size="md" label={`${k.customers} customers`} />
-              {ds.capabilities.dates && <Delta value={pctChange(k.customers, c?.customers)} label={cl} />}
-            </div>
-          )}
-          {k.margin !== undefined ? (
-            <div className="deck-cell">
-              <span className="deck-label">Margin</span>
-              <Readout value={k.margin} kind="pct" size="md" label={`Margin ${pct(k.margin)}`} />
-            </div>
-          ) : k.units !== undefined ? (
-            <div className="deck-cell">
-              <span className="deck-label">Units</span>
-              <Readout value={k.units} kind="count" size="md" label={`${k.units} units`} />
-              {ds.capabilities.dates && <Delta value={pctChange(k.units, c?.units)} label={cl} />}
-            </div>
-          ) : null}
-        </div>
+          {k.returns < 0 && <span className="ticket-foot">{money(k.gross, currency)} gross, {money(k.returns, currency)} returns</span>}
+        </Ticket>
+        <Ticket label="Orders" stub={ds.capabilities.dates ? <Delta value={pctChange(k.orders, c?.orders)} label={cl} /> : undefined}>
+          <Readout value={k.orders} kind="count" size="md" label={`${k.orders} orders`} />
+        </Ticket>
+        <Ticket label="Average order" stub={ds.capabilities.dates ? <Delta value={pctChange(k.aov, c?.aov)} label={cl} /> : undefined}>
+          <Readout value={k.aov} currency={currency} size="md" label={`Average order ${money(k.aov, currency, 'exact')}`} />
+        </Ticket>
+        {ds.capabilities.customers && (
+          <Ticket label="Customers" stub={ds.capabilities.dates ? <Delta value={pctChange(k.customers, c?.customers)} label={cl} /> : undefined}>
+            <Readout value={k.customers} kind="count" size="md" label={`${k.customers} customers`} />
+          </Ticket>
+        )}
+        {k.margin !== undefined ? (
+          <Ticket label="Margin">
+            <Readout value={k.margin} kind="pct" size="md" label={`Margin ${pct(k.margin)}`} />
+          </Ticket>
+        ) : k.units !== undefined ? (
+          <Ticket label="Units" stub={ds.capabilities.dates ? <Delta value={pctChange(k.units, c?.units)} label={cl} /> : undefined}>
+            <Readout value={k.units} kind="count" size="md" label={`${k.units} units`} />
+          </Ticket>
+        ) : null}
       </div>
 
       {ds.capabilities.dates && weeks.length > 1 && (
         <Panel
+          glass
           className="panel-scope"
           title="Weekly net sales"
           aside={
@@ -152,13 +140,18 @@ export function Overview() {
 
       <div className="split">
         {mix.length > 1 && (
-          <Panel title={`Share by ${DIMENSION_LABEL[mixDim!].toLowerCase()}`}>
-            <Rings items={mix} label={`Revenue share by ${DIMENSION_LABEL[mixDim!]}`} />
+          <Panel glass title={`Share by ${DIMENSION_LABEL[mixDim!].toLowerCase()}`}>
+            <ShareStack items={mix} label={`Revenue share by ${DIMENSION_LABEL[mixDim!]}`} />
           </Panel>
         )}
         {top20 !== undefined && (
-          <Panel title="How concentrated sales are">
-            <Meter value={top20} label="Top 20% of products" caption={`bring ${pct(top20, 0)} of net sales across ${plural(products.length, 'product')}. Above 80% means a few items carry the store.`} />
+          <Panel title="How concentrated sales are" className="panel-tagcard">
+            <div className="pricetag">
+              <span className="pricetag-hole" aria-hidden />
+              <b>{pct(top20, 0)}</b>
+              <span>of net sales come from the top 20% of products ({Math.ceil(products.length * 0.2).toLocaleString('en')} of {plural(products.length, 'product')}).</span>
+            </div>
+            <p className="fine">Around 80% is typical for retail. Much higher means a few items carry the store, so their stock matters most.</p>
           </Panel>
         )}
         <Panel title="Unusual weeks" className="panel-anoms">

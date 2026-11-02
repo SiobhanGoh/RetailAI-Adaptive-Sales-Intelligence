@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { gsap } from 'gsap'
 import { AppProvider, MODULES, useApp } from './state'
 import { ReceiptProvider } from './receipt'
-import { DisplayBand, DropZone, FilterSheet, Keypad, ReceiptPrinter, TuningBand, useFileOpener, useShortcuts } from './ui/chassis'
+import { DisplayBand, DropZone, FilterSheet, ReceiptPrinter, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
 import { reducedMotion } from './ui/primitives'
 import { Overview } from './modules/Overview'
 import { Sales } from './modules/Sales'
@@ -16,12 +16,14 @@ function Logo() {
   return (
     <div className="logo">
       <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden>
-        <rect x="3" y="3" width="34" height="34" rx="9" className="logo-plate" />
-        <path d="M11 27V13h8.5a4.5 4.5 0 0 1 0 9H15l7 5" className="logo-r" />
-        <circle cx="28.5" cy="13.5" r="2.4" className="logo-dot" />
+        <g transform="rotate(-12 20 20)">
+          <path d="M14 6h12l6 7v21H8V13z" className="logo-plate" />
+          <circle cx="20" cy="12" r="2.6" className="logo-dot" />
+          <path d="M13 22h14M13 27.5h9" className="logo-r" />
+        </g>
       </svg>
       <span className="logo-word">
-        Retail<span>AI</span>
+        RETAIL<b>AI</b>
       </span>
     </div>
   )
@@ -32,7 +34,7 @@ function Screen({ onOpen }: { onOpen: () => void }) {
   const screen = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     if (reducedMotion() || !screen.current) return
-    gsap.fromTo(screen.current, { opacity: 0.35, filter: 'brightness(1.8) blur(1.5px)' }, { opacity: 1, filter: 'brightness(1) blur(0px)', duration: 0.45, ease: 'power2.out', clearProps: 'filter' })
+    gsap.fromTo(screen.current, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', clearProps: 'transform' })
   }, [module, report])
 
   const body = useMemo(() => {
@@ -99,10 +101,11 @@ function Console() {
     if (reducedMotion() || seen) return
     const q = gsap.utils.selector(shell.current)
     const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
-    tl.from(q('.screen-glass'), { scaleY: 0.012, scaleX: 0.6, opacity: 0.9, duration: 0.55, ease: 'expo.out' })
-      .from(q('.band-cell'), { opacity: 0, duration: 0.05, stagger: { each: 0.07, repeat: 1, yoyo: true } }, 0.1)
-      .from(q('.key'), { y: 14, opacity: 0, duration: 0.5, stagger: 0.035 }, 0.2)
-      .from(q('.tuning'), { opacity: 0, y: 10, duration: 0.5 }, 0.35)
+    tl.from(q('.order'), { y: -70, rotate: (i) => (i % 2 ? 7 : -6), opacity: 0, duration: 0.9, stagger: 0.06, ease: 'elastic.out(1, 0.55)' })
+      .from(q('.band-cell'), { opacity: 0, y: -6, duration: 0.35, stagger: 0.05 }, 0.1)
+      .from(q('.ticket'), { y: 26, opacity: 0, duration: 0.6, stagger: 0.07 }, 0.25)
+      .from(q('.panel-scope .scope-line'), { strokeDashoffset: 4000, strokeDasharray: 4000, duration: 1.4, ease: 'power2.inOut', clearProps: 'strokeDasharray,strokeDashoffset' }, 0.35)
+      .from(q('.tuning'), { opacity: 0, y: 12, duration: 0.5 }, 0.4)
   }, [ds])
 
   useEffect(() => {
@@ -115,14 +118,15 @@ function Console() {
       <header className="topbar">
         <Logo />
         <DisplayBand />
+        <Utilities onFilters={openFilters} onUpload={pick} />
       </header>
+      <TicketRail />
       <div className="deckrow">
         <Screen onOpen={pick} />
         <ReceiptPrinter />
       </div>
       <footer className="controls">
         <TuningBand />
-        <Keypad onFilters={openFilters} onUpload={pick} />
       </footer>
       <FilterSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} />
       <DropZone onFile={openFile} />

@@ -66,7 +66,7 @@ export function Customers() {
       </header>
 
       <div className="cust-layout">
-        <Panel title="Who is still buying" className="panel-rf">
+        <Panel glass title="Who is still buying" className="panel-rf">
           <div className="rf">
             <span className="rf-y">More recent</span>
             <Heat cells={[...grid].reverse()} rows={['5', '4', '3', '2', '1']} cols={['1', '2', '3', '4', '5']} format={(v) => String(v)} label="Customers by recency score (rows) and frequency score (columns)" />
@@ -123,7 +123,7 @@ export function Customers() {
         </Panel>
 
         {coh.length > 1 && (
-          <Panel title="Return rate by first-purchase quarter" className="panel-cohort">
+          <Panel glass title="Return rate by first-purchase quarter" className="panel-cohort">
             <Heat
               cells={coh.slice(-10).map((c) => Array.from({ length: quarters }, (_, k) => (k < c.retention.length ? c.retention[k] : null)))}
               rows={coh.slice(-10).map((c) => `${quarterLabel(c.quarter)} (${c.size})`)}
@@ -136,7 +136,7 @@ export function Customers() {
           </Panel>
         )}
 
-        <Panel title="Next purchase ideas" className="panel-next">
+        <Panel glass title="Next purchase ideas" className="panel-next">
           <label className="select-wrap">
             <span>Customer</span>
             <input className="field" list="customer-list" value={who} placeholder="Type a name or ID" onChange={(e) => setWho(e.target.value)} />

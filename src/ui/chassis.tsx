@@ -10,62 +10,89 @@ import { fmtDay, fmtMonth, plural, rangeLabel } from '../format'
 import { parseCsvText, tableFromMatrix } from '../engine/load'
 import { weekday } from '../engine/values'
 
-// ------------------------------------------------------------------ top display band
+// ------------------------------------------------------------------ status chips
 
 export function DisplayBand() {
   const { ds, filters, rows } = useApp()
   const active = Object.values(filters.dims).reduce((a, v) => a + (v?.length ?? 0), 0)
   return (
     <div className="band" role="status" aria-live="polite">
-      <span className="band-cell band-store" title={ds?.name}>{ds ? ds.name : 'No data loaded'}</span>
+      <span className="band-cell band-store" title={ds?.name}>
+        <i className="lamp" aria-hidden />
+        {ds ? ds.name : 'No data loaded'}
+      </span>
       <span className="band-cell">{ds?.capabilities.dates ? rangeLabel(filters.from, filters.to) : 'Undated rows'}</span>
-      <span className="band-cell">{active ? `${plural(active, 'filter')} on` : 'All segments'}</span>
-      <span className="band-cell">{plural(rows.length, 'line')}</span>
+      <span className="band-cell">
+        <i className={`lamp ${active ? 'lamp-on' : ''}`} aria-hidden />
+        {active ? `${plural(active, 'filter')} on` : 'All segments'}
+      </span>
+      <span className="band-cell band-count">{plural(rows.length, 'line')}</span>
     </div>
   )
 }
 
-// ------------------------------------------------------------------ keypad
+// ------------------------------------------------------------------ ticket rail (screens) and header actions
 
-export function Keypad({ onFilters, onUpload }: { onFilters: () => void; onUpload: () => void }) {
-  const { module, setModule, filters, setReport, report, theme, setTheme, ds } = useApp()
-  const active = Object.values(filters.dims).reduce((a, v) => a + (v?.length ?? 0), 0)
-  const press = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (reducedMotion()) return
-    gsap.fromTo(e.currentTarget, { y: 3, scale: 0.98 }, { y: 0, scale: 1, duration: 0.35, ease: 'back.out(3)' })
-  }
+const press = (el: HTMLElement) => {
+  if (reducedMotion()) return
+  gsap.fromTo(el, { rotate: -3, y: 4 }, { rotate: 0, y: 0, duration: 0.6, ease: 'elastic.out(1, 0.45)' })
+}
+
+export function TicketRail() {
+  const { module, setModule, report } = useApp()
   return (
-    <nav className="keypad" aria-label="Screens and actions">
-      <div className="keys keys-main">
-        {MODULES.map((m) => (
-          <button key={m.id} type="button" className={`key ${module === m.id && !report ? 'on' : ''}`} aria-current={module === m.id && !report ? 'page' : undefined} onClick={(e) => (press(e), setModule(m.id))} title={`${m.hint} (key ${m.key})`}>
-            <span className="key-led" aria-hidden />
-            <span className="key-label">{m.label}</span>
-            <kbd className="key-legend">{m.key}</kbd>
-          </button>
-        ))}
-      </div>
-      <div className="keys keys-util">
-        <button type="button" className="key key-util" onClick={(e) => (press(e), onFilters())} disabled={!ds?.capabilities.dimensions.length} title="Choose regions, categories and more (F)">
-          <span className="key-label">Filters</span>
-          {active > 0 && <span className="key-count">{active}</span>}
-          <kbd className="key-legend">F</kbd>
-        </button>
-        <button type="button" className={`key key-util ${report ? 'on' : ''}`} onClick={(e) => (press(e), setReport(!report))} title="Open the printable report (P)">
-          <span className="key-label">Report</span>
-          <kbd className="key-legend">P</kbd>
-        </button>
-        <button type="button" className="key key-util key-sticker" onClick={(e) => (press(e), onUpload())} title="Open your own CSV or Excel file (U)">
-          <span className="key-label">Open file</span>
-          <kbd className="key-legend">U</kbd>
-        </button>
-        <button type="button" className="key key-util key-round" onClick={(e) => (press(e), setTheme(theme === 'console' ? 'showroom' : 'console'))} aria-label={theme === 'console' ? 'Switch to the light chassis' : 'Switch to the dark chassis'} title="Switch chassis colour">
-          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
-            {theme === 'console' ? <circle cx="10" cy="10" r="4.5" fill="currentColor" /> : <path d="M13.5 3.5a7 7 0 1 0 3 9.6A6 6 0 0 1 13.5 3.5Z" fill="currentColor" />}
-          </svg>
-        </button>
+    <nav className="rail" aria-label="Screens">
+      <span className="rail-bar" aria-hidden />
+      <div className="rail-tickets">
+        {MODULES.map((m) => {
+          const on = module === m.id && !report
+          return (
+            <button
+              key={m.id}
+              type="button"
+              className={`order ${on ? 'on' : ''}`}
+              aria-current={on ? 'page' : undefined}
+              onClick={(e) => (press(e.currentTarget), setModule(m.id))}
+              title={`${m.hint}. Shortcut: ${m.key}`}
+            >
+              <span className="order-clip" aria-hidden />
+              <span className="order-label">{m.label}</span>
+              <span className="order-hint">{m.hint}</span>
+            </button>
+          )
+        })}
       </div>
     </nav>
+  )
+}
+
+export function Utilities({ onFilters, onUpload }: { onFilters: () => void; onUpload: () => void }) {
+  const { filters, setReport, report, theme, setTheme, ds } = useApp()
+  const active = Object.values(filters.dims).reduce((a, v) => a + (v?.length ?? 0), 0)
+  return (
+    <div className="utils">
+      <button type="button" className="btn btn-metal" onClick={onFilters} disabled={!ds?.capabilities.dimensions.length} title="Choose regions, categories and more. Shortcut: F">
+        Filters
+        {active > 0 && <span className="count">{active}</span>}
+      </button>
+      <button type="button" className={`btn btn-metal ${report ? 'on' : ''}`} aria-pressed={report} onClick={() => setReport(!report)} title="Open the printable report. Shortcut: P">
+        Report
+      </button>
+      <button type="button" className="btn btn-amber" onClick={onUpload} title="Open your own CSV or Excel file. Shortcut: U">
+        Open a file
+      </button>
+      <button
+        type="button"
+        className="btn btn-metal btn-icon"
+        onClick={() => setTheme(theme === 'console' ? 'showroom' : 'console')}
+        aria-label={theme === 'console' ? 'Switch to the graphite finish' : 'Switch to the aluminium finish'}
+        title={theme === 'console' ? 'Graphite finish' : 'Aluminium finish'}
+      >
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
+          {theme === 'console' ? <path d="M13.5 3.5a7 7 0 1 0 3 9.6A6 6 0 0 1 13.5 3.5Z" fill="currentColor" /> : <circle cx="10" cy="10" r="4.5" fill="currentColor" />}
+        </svg>
+      </button>
+    </div>
   )
 }
 
@@ -246,9 +273,6 @@ export function TuningBand() {
       </div>
       <div className="tuning-dial" ref={ref} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <svg viewBox={`0 0 ${width} ${H}`} width={width} height={H} aria-hidden>
-          {Array.from({ length: Math.floor(width / 8) }, (_, i) => (
-            <line key={i} x1={i * 8 + 4} x2={i * 8 + 4} y1={H - 4} y2={H - (i % 5 === 0 ? 14 : 9)} className="tuning-tick" />
-          ))}
           <path d={spark(weeksAll) ?? ''} className="tuning-spark" />
           {years.map((d) => (
             <g key={d}>

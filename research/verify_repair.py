@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 import pandas as pd
 from utils.data_loader import prepare_adaptive_dataset
@@ -12,7 +12,7 @@ from utils.forecasting_utils import train_weekly_knn_forecast
 
 
 def main():
-    source = ROOT/'data/Superstore Sales Dataset.csv'
+    source = ROOT.parent/'data/superstore_sales.csv'
     raw = pd.read_csv(source)
     clean, _ = prepare_adaptive_dataset(raw, date_format='%d/%m/%Y')
     weekly, predictions, metrics, future = train_weekly_knn_forecast(clean)
@@ -28,7 +28,7 @@ def main():
         'evaluation': 'Fixed five-neighbour scaled KNN; final 20% chronological one-step evaluation; no tuning in this repair.',
         'limitations': 'Retrospective data already explored historically; not external validation. Four-step future error is not estimated here.',
     }
-    out = ROOT/'verification'
+    out = ROOT.parent/'verification'
     out.mkdir(exist_ok=True)
     (out/'corrected_evaluation.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
     predictions.to_csv(out/'one_step_predictions.csv', index=False)

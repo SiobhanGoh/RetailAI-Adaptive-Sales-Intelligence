@@ -1,5 +1,7 @@
+"""Archived Python data preparation used by the research scripts (the app now runs in the browser)."""
+import warnings
+
 import pandas as pd
-import streamlit as st
 from utils.date_utils import parse_dates
 
 from utils.column_mapper import (
@@ -8,24 +10,6 @@ from utils.column_mapper import (
     detect_dataset_mode,
     standardize_detected_columns,
 )
-
-
-def read_uploaded_file(uploaded_file):
-    try:
-        file_name = uploaded_file.name.lower()
-
-        if file_name.endswith(".csv"):
-            return pd.read_csv(uploaded_file)
-
-        if file_name.endswith((".xlsx", ".xls")):
-            return pd.read_excel(uploaded_file)
-
-        st.error("Only CSV/Excel files are supported.")
-        return None
-
-    except Exception as e:
-        st.error(f"Error reading file: {e}")
-        return None
 
 
 def normalize_columns(df):
@@ -65,14 +49,7 @@ def prepare_adaptive_dataset(raw_df, *, dayfirst=True, date_format=None):
     dataset_mode = detect_dataset_mode(capabilities)
 
     if dataset_mode == "unsupported":
-        st.error("Unsupported dataset format.")
-        st.warning(
-            "This app needs at least a Sales / Revenue / Amount column, "
-            "or a Product column for product catalog analysis."
-        )
-        st.write("Detected columns:")
-        st.write(df.columns.tolist())
-        st.stop()
+        raise ValueError(f"Unsupported dataset: need a sales or product column. Columns: {df.columns.tolist()}")
 
     df = standardize_detected_columns(df, column_map)
 
@@ -88,12 +65,11 @@ def prepare_adaptive_dataset(raw_df, *, dayfirst=True, date_format=None):
         df["Order_Date"] = parse_dates(df["Order_Date"], dayfirst=dayfirst, date_format=date_format)
         invalid_dates = int(df["Order_Date"].isna().sum())
         if invalid_dates:
-            st.warning(f"Excluded {invalid_dates:,} rows with missing or invalid order dates. Check the upload date convention.")
+            warnings.warn(f"Excluded {invalid_dates:,} rows with missing or invalid order dates.")
         df = df.dropna(subset=["Order_Date"])
 
     if df.empty:
-        st.error("After cleaning, no usable rows remain.")
-        st.stop()
+        raise ValueError("After cleaning, no usable rows remain.")
 
     if "Order_Date" not in df.columns:
         df["Order_Date"] = pd.NaT
@@ -164,71 +140,3 @@ def prepare_adaptive_dataset(raw_df, *, dayfirst=True, date_format=None):
     }
 
     return df.drop_duplicates(), metadata
-
-
-@st.cache_data
-def load_default_data():
-    df = pd.read_csv("data/Superstore Sales Dataset.csv")
-    df = normalize_columns(df)
-
-    cleaned_df, metadata = prepare_adaptive_dataset(df, date_format="%d/%m/%Y")
-
-    metadata["dataset_type"] = "transaction"
-    metadata["dataset_mode"] = "full_transaction"
-
-    return {
-        "df": cleaned_df,
-        "dataset_type": metadata["dataset_type"],
-        "dataset_mode": metadata["dataset_mode"],
-        "capabilities": metadata["capabilities"],
-        "column_map": metadata["column_map"],
-    }
-
-
-def load_data():
-    st.sidebar.markdown("### Data Source (CSV/Excel)")
-
-    uploaded_file = st.sidebar.file_uploader(
-        "",
-        type=["csv", "xlsx", "xls"]
-    )
-
-    if uploaded_file is None:
-        st.sidebar.info("Using default Superstore dataset.")
-        return load_default_data()
-
-    raw_df = read_uploaded_file(uploaded_file)
-
-    if raw_df is None:
-        st.stop()
-
-    raw_df = normalize_columns(raw_df)
-
-    date_convention = st.sidebar.selectbox(
-        "Date convention for uploaded data",
-        ["Day/month/year", "Month/day/year"],
-        help="Choose how ambiguous dates such as 08/11/2026 should be read. ISO year-month-day dates are handled automatically.",
-    )
-    cleaned_df, metadata = prepare_adaptive_dataset(raw_df, dayfirst=date_convention == "Day/month/year")
-
-    dataset_mode = metadata["dataset_mode"]
-
-    mode_labels = {
-        "basic_sales": "Basic Sales Dataset",
-        "time_based": "Time-Based Sales Dataset",
-        "category_product": "Category/Product Sales Dataset",
-        "full_transaction": "Full Transaction Dataset",
-        "product_catalog": "Product Catalog Dataset",
-    }
-
-    st.sidebar.success(
-        f"Detected dataset: {mode_labels.get(dataset_mode, 'Sales Dataset')}"
-    )
-
-    return {
-        "df": cleaned_df,
-        "dataset_type": metadata["dataset_type"],
-        "dataset_mode": metadata["dataset_mode"],
-        "capabilities": metadata["capabilities"],
-        "column_map": metadata["column_map"],
-    }

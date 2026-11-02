@@ -14,6 +14,13 @@ export const MODEL_LABEL: Record<ModelId, string> = {
   knn: 'Nearest-neighbour on recent weeks',
 }
 
+export const MODEL_SHORT: Record<ModelId, string> = {
+  seasonal: 'Last year',
+  recent: '4-week average',
+  holtwinters: 'Holt–Winters',
+  knn: 'Nearest-neighbour',
+}
+
 export interface SeriesPoint {
   end: number // day number of week end
   y: number

@@ -97,7 +97,7 @@ export function Sales() {
         </Panel>
 
         {grid && (
-          <Panel title="Average daily sales by weekday and month" className="panel-rhythm">
+          <Panel glass title="Average daily sales by weekday and month" className="panel-rhythm">
             <div className="heat-quiet">
               <Heat cells={grid.grid} rows={DAYS} cols={MONTHS.map((m) => m[0])} format={(v) => money(v, currency)} label="Average daily sales by weekday and month" />
             </div>
@@ -106,7 +106,7 @@ export function Sales() {
         )}
 
         {curve.length > 10 && (
-          <Panel title="Sales concentration across products" className="panel-pareto">
+          <Panel glass title="Sales concentration across products" className="panel-pareto">
             <Pareto curve={curve} label="Cumulative share of sales by ranked products" />
             <p className="fine">
               The top 20% of products bring {pct(top20, 0)} of sales. The dashed line is what an even spread would look like.

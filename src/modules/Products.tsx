@@ -102,13 +102,13 @@ export function Products() {
       )}
 
       <div className="trio">
-        <Panel title="Bought in the same order">
+        <Panel glass title="Bought in the same order">
           <TagList items={together} empty="No other order contains this item yet." why={(s) => `Together in ${plural(s.evidence, 'order')}`} />
         </Panel>
-        <Panel title={`Best sellers in ${info?.subcategory ?? 'its sub-category'}`}>
+        <Panel glass title={`Best sellers in ${info?.subcategory ?? 'its sub-category'}`}>
           <TagList items={sameSub} empty="This item has no sub-category to compare within." why={(s) => `In ${plural(s.evidence, 'order')}`} />
         </Panel>
-        <Panel title="Similar description">
+        <Panel glass title="Similar description">
           <TagList items={similar} empty="No other product shares words with this one." why={(s) => `${Math.round(s.score * 100)}% word overlap`} />
         </Panel>
       </div>

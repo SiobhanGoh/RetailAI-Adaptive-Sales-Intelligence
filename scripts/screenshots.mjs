@@ -25,7 +25,7 @@ async function open(vp) {
 }
 
 const desktop = { width: 1440, height: 900, deviceScaleFactor: 1 }
-const shot = (page, name, opts = {}) => page.screenshot({ path: `${outDir}/${name}.png`, ...opts })
+const shot = (page, name, opts = {}) => page.screenshot({ path: `${outDir}/${name}.webp`, type: 'webp', quality: 88, ...opts })
 
 {
   const page = await open(desktop)
@@ -36,34 +36,20 @@ const shot = (page, name, opts = {}) => page.screenshot({ path: `${outDir}/${nam
     await shot(page, `desktop-${name}`)
   }
   await page.keyboard.press('1')
-  await page.keyboard.press('f')
+  await page.click('.btn-icon')
   await wait(500)
-  await shot(page, 'desktop-filters')
-  await page.keyboard.press('Escape')
-  await page.keyboard.press('p')
-  await wait(800)
-  await shot(page, 'desktop-report')
-  await page.keyboard.press('p')
-  await page.click('.key-round')
-  await wait(500)
-  await shot(page, 'desktop-showroom')
-  await page.click('.key-round')
+  await shot(page, 'desktop-graphite')
+  await page.click('.btn-icon')
   // Open the synthetic messy fixture through the real file picker.
-  const [chooser] = await Promise.all([page.waitForFileChooser(), page.keyboard.press('u')])
+  const [chooser] = await Promise.all([page.waitForFileChooser(), page.click('.btn-amber')])
   await chooser.accept([resolve('test/fixtures/synthetic_gift_shop.csv')])
   await wait(1200)
   await shot(page, 'desktop-upload-data')
-  await page.keyboard.press('1')
-  await wait(700)
-  await shot(page, 'desktop-upload-overview')
   await page.close()
 }
 {
   const page = await open({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
   await shot(page, 'mobile-overview')
-  await page.keyboard.press('3')
-  await wait(700)
-  await shot(page, 'mobile-forecast', { fullPage: true })
   await page.close()
 }
 console.log(errors.length ? `Console errors:\n${errors.join('\n')}` : 'No console errors')

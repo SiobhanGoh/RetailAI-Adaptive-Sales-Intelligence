@@ -1,42 +1,15 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Empty, Panel } from '../ui/primitives'
+import { Empty, Panel, Segmented } from '../ui/primitives'
 import { Scope } from '../charts/Scope'
 import { modelWeeks, weeklySeries } from '../engine/aggregate'
-import { MAX_H, MODEL_LABEL, availableModels, backtest, runForecast, type ModelId } from '../engine/forecast'
+import { MAX_H, MODEL_LABEL, MODEL_SHORT, availableModels, backtest, runForecast, type ModelId } from '../engine/forecast'
 import { DIMENSION_LABEL, type Dimension } from '../engine/types'
 import { downloadCsv, fmtDay, money, pct } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
 
 type Horizon = '4' | '8' | '12'
-
-function Knob({ value, onChange }: { value: Horizon; onChange: (h: Horizon) => void }) {
-  const opts: Horizon[] = ['4', '8', '12']
-  const angle = { '4': -50, '8': 0, '12': 50 }[value]
-  return (
-    <div className="knob" role="radiogroup" aria-label="Weeks ahead">
-      <svg viewBox="-40 -40 80 80" width="76" height="76" aria-hidden>
-        <circle r="30" className="knob-ring" />
-        {opts.map((o) => {
-          const a = ({ '4': -50, '8': 0, '12': 50 }[o] * Math.PI) / 180
-          return <line key={o} x1={Math.sin(a) * 33} y1={-Math.cos(a) * 33} x2={Math.sin(a) * 38} y2={-Math.cos(a) * 38} className={o === value ? 'knob-tick on' : 'knob-tick'} />
-        })}
-        <g style={{ transform: `rotate(${angle}deg)` }} className="knob-cap">
-          <circle r="24" />
-          <rect x="-2" y="-22" width="4" height="12" rx="2" className="knob-pointer" />
-        </g>
-      </svg>
-      <div className="knob-labels">
-        {opts.map((o) => (
-          <button key={o} type="button" role="radio" aria-checked={o === value} className={o === value ? 'on' : ''} onClick={() => onChange(o)}>
-            {o} weeks
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 export function Forecast() {
   const { ds, rowsAllDates, filters, currency, source } = useApp()
@@ -98,7 +71,7 @@ export function Forecast() {
             { label: baseLabel, value: money(base, currency, 'whole') },
             { label: 'Change', value: `${total >= base ? '+' : '−'}${pct(Math.abs(total - base) / Math.max(1, base))}`, tone: total >= base ? 'up' : 'down' },
             { label: `Last ${H} weeks`, value: money(lastActual, currency, 'whole') },
-            { label: 'Model used', value: MODEL_LABEL[result.chosen].split(' (')[0] },
+            { label: 'Model used', value: MODEL_SHORT[result.chosen] },
             { label: 'Typical error (WAPE)', value: pct(chosenScore!.wape) },
             { label: 'Backtest forecasts', value: String(chosenScore!.n) },
           ],
@@ -131,7 +104,16 @@ export function Forecast() {
               ))}
             </select>
           </label>
-          <Knob value={horizon} onChange={setHorizon} />
+          <Segmented<Horizon>
+            label="Weeks ahead"
+            value={horizon}
+            onChange={setHorizon}
+            options={[
+              { id: '4', label: '4 weeks' },
+              { id: '8', label: '8 weeks' },
+              { id: '12', label: '12 weeks' },
+            ]}
+          />
         </div>
       </header>
 
@@ -140,6 +122,7 @@ export function Forecast() {
       ) : (
         <>
           <Panel
+            glass
             className="panel-scope"
             title="History and outlook"
             aside={
