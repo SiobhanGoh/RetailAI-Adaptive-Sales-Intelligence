@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Empty, Panel, Segmented } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Panel, Pill, Segmented } from '../ui/primitives'
 import { Scope } from '../charts/Scope'
 import { modelWeeks, weeklySeries } from '../engine/aggregate'
 import { MAX_H, MODEL_LABEL, MODEL_SHORT, availableModels, backtest, runForecast, type ModelId } from '../engine/forecast'
@@ -91,10 +91,21 @@ export function Forecast() {
   return (
     <div className="mod mod-forecast">
       <header className="mod-head">
-        <div>
-          <h2>Forecast</h2>
-          <p className="mod-sub">{history.length ? `Built from ${history.length} full weeks ending ${fmtDay(history[history.length - 1].end)}` : 'Not enough history yet'}</p>
-        </div>
+        <Headline k={`${H}|${focus}|${total}`}>
+          {result.ok ? (
+            <>
+              <p className="hl-line">
+                Next {H} weeks: about <Fig value={total} format={(v) => money(v, currency)} />.
+              </p>
+              <p className="hl-line hl-sub">
+                {lastYear !== null ? <Pill value={(total - base) / Math.max(1, base)} label="the same weeks last year" /> : null}
+                {' '}Likely range {money(result.forecast.reduce((a, p) => a + p.lo, 0), currency)} to {money(result.forecast.reduce((a, p) => a + p.hi, 0), currency)}.
+              </p>
+            </>
+          ) : (
+            <p className="hl-line">Forecast</p>
+          )}
+        </Headline>
         <div className="fc-controls">
           <label className="select-wrap">
             <span>Forecast for</span>
@@ -141,6 +152,7 @@ export function Forecast() {
             <Scope points={shownHistory} forecast={result.forecast} compare={actualAfter.length ? [shownHistory[shownHistory.length - 1], ...actualAfter] : undefined} currency={currency} height={300} label={`Weekly sales with a ${H}-week forecast`} />
           </Panel>
 
+          <Details label="Show how the forecast was made">
           <div className="split split-fc">
             <Panel title="Model replay" className="panel-board">
               <ol className="board" aria-label="Models ranked by backtest error">
@@ -199,6 +211,7 @@ export function Forecast() {
               Checked on this sample store with the model picked on earlier weeks and scored on later ones: {H <= 4 ? '4' : '12'}-week WAPE was {evalH.chosen_model_late_wape_pct}% and the 80% band held {evalH.band_80_coverage_on_late_origins_pct}% of outcomes, so the band is narrower than it should be. On those later weeks the four models were within {spread.toFixed(1)} points of each other, so no model is clearly better than the simple ones.
             </p>
           )}
+          </Details>
         </>
       )}
     </div>

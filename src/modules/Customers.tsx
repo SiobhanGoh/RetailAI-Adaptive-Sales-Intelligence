@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Empty, Panel } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Panel } from '../ui/primitives'
 import { Heat } from '../charts/misc'
 import { cohorts, customerStats, quarterLabel, repeatStats, rfGrid, segmentSummary, type SegmentId } from '../engine/customers'
 import { buildIndex, suggestForCustomer, REASON_LABEL } from '../engine/recommend'
-import { downloadCsv, fmtDay, money, pct, plural } from '../format'
+import { count, downloadCsv, fmtDay, money, pct, plural } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
 
 export function Customers() {
@@ -21,7 +21,7 @@ export function Customers() {
   const history = useMemo(() => rowsAllDates.filter((r) => r.day <= filters.to), [rowsAllDates, filters.to])
   const idx = useMemo(() => (stats.length ? buildIndex(history) : null), [history, stats.length])
   const picked = segments.find((s) => s.id === seg)!
-  const person = stats.find((c) => c.id === who || c.name === who)
+  const person = stats.find((c) => c.id === who || c.name === who) ?? (who ? undefined : picked?.members[0])
   const ideas = useMemo(() => (idx && person ? suggestForCustomer(idx, person.id, 5) : []), [idx, person])
 
   const champions = segments.find((s) => s.id === 'champions')!
@@ -59,21 +59,18 @@ export function Customers() {
   return (
     <div className="mod mod-customers">
       <header className="mod-head">
-        <div>
-          <h2>Customers</h2>
-          <p className="mod-sub">{plural(stats.length, 'customer')} bought in this period, scored as of {fmtDay(asOf - 1)}</p>
-        </div>
+        <Headline k={`${stats.length}|${champions.customers}|${atRisk.customers}`}>
+          <p className="hl-line">
+            <Fig value={champions.customers} format={(v) => count(Math.round(v))} /> champions bring {pct(champions.share, 0)} of sales.
+          </p>
+          <p className="hl-line hl-sub">
+            {atRisk.customers ? `${plural(atRisk.customers, 'regular buyer')} ${atRisk.customers === 1 ? 'has' : 'have'} gone quiet and are worth a win-back message. ` : ''}
+            {pct(rep.repeatShare, 0)} of the {plural(stats.length, 'customer')} in this period bought more than once.
+          </p>
+        </Headline>
       </header>
 
       <div className="cust-layout">
-        <Panel glass title="Who is still buying" className="panel-rf">
-          <div className="rf">
-            <span className="rf-y">More recent</span>
-            <Heat cells={[...grid].reverse()} rows={['5', '4', '3', '2', '1']} cols={['1', '2', '3', '4', '5']} format={(v) => String(v)} label="Customers by recency score (rows) and frequency score (columns)" />
-            <span className="rf-x">Order more often</span>
-          </div>
-        </Panel>
-
         <Panel title="Segments" className="panel-segs">
           <div className="segs" role="tablist" aria-label="Customer segments">
             {segments.map((s) => (
@@ -122,24 +119,10 @@ export function Customers() {
           </div>
         </Panel>
 
-        {coh.length > 1 && (
-          <Panel glass title="Return rate by first-purchase quarter" className="panel-cohort">
-            <Heat
-              cells={coh.slice(-10).map((c) => Array.from({ length: quarters }, (_, k) => (k < c.retention.length ? c.retention[k] : null)))}
-              rows={coh.slice(-10).map((c) => `${quarterLabel(c.quarter)} (${c.size})`)}
-              cols={Array.from({ length: quarters }, (_, k) => (k === 0 ? 'Start' : `+${k}`))}
-              format={(v) => pct(v, 0)}
-              max={0.6}
-              label="Share of each quarter's new customers who bought again in later quarters"
-            />
-            <p className="fine">Each row is customers whose first order fell in that quarter, with how many there were. Columns are quarters after their first order. Blank cells are still in the future.</p>
-          </Panel>
-        )}
-
         <Panel glass title="Next purchase ideas" className="panel-next">
           <label className="select-wrap">
             <span>Customer</span>
-            <input className="field" list="customer-list" value={who} placeholder="Type a name or ID" onChange={(e) => setWho(e.target.value)} />
+            <input className="field" list="customer-list" value={who} placeholder={person?.name ?? "Type a name or ID"} onChange={(e) => setWho(e.target.value)} />
             <datalist id="customer-list">
               {stats.slice(0, 2000).map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -170,6 +153,33 @@ export function Customers() {
           )}
         </Panel>
       </div>
+
+      <Details label="Show the recency grid and retention">
+        <div className="cust-layout">
+        <Panel glass title="Who is still buying" className="panel-rf">
+          <div className="rf">
+            <span className="rf-y">More recent</span>
+            <Heat cells={[...grid].reverse()} rows={['5', '4', '3', '2', '1']} cols={['1', '2', '3', '4', '5']} format={(v) => String(v)} label="Customers by recency score (rows) and frequency score (columns)" />
+            <span className="rf-x">Order more often</span>
+          </div>
+        </Panel>
+
+        {coh.length > 1 && (
+          <Panel glass title="Return rate by first-purchase quarter" className="panel-cohort">
+            <Heat
+              cells={coh.slice(-10).map((c) => Array.from({ length: quarters }, (_, k) => (k < c.retention.length ? c.retention[k] : null)))}
+              rows={coh.slice(-10).map((c) => `${quarterLabel(c.quarter)} (${c.size})`)}
+              cols={Array.from({ length: quarters }, (_, k) => (k === 0 ? 'Start' : `+${k}`))}
+              format={(v) => pct(v, 0)}
+              max={0.6}
+              label="Share of each quarter's new customers who bought again in later quarters"
+            />
+            <p className="fine">Each row is customers whose first order fell in that quarter, with how many there were. Columns are quarters after their first order. Blank cells are still in the future.</p>
+          </Panel>
+        )}
+
+        </div>
+      </Details>
     </div>
   )
 }

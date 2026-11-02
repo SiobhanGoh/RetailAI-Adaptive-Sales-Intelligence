@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Empty, Panel } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Panel } from '../ui/primitives'
 import { buildIndex, similarProducts, subcategoryAffinity, suggestFor, togetherWith, topPairs, type Suggestion } from '../engine/recommend'
-import { downloadCsv, money, plural } from '../format'
+import { downloadCsv, money, plural, shorten } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
 
 function TagList({ items, empty, why }: { items: Suggestion[]; empty: string; why: (s: Suggestion) => string }) {
@@ -73,13 +73,21 @@ export function Products() {
   return (
     <div className="mod mod-products">
       <header className="mod-head">
-        <div>
-          <h2>Products</h2>
-          <p className="mod-sub">{plural(idx.products.size, 'product')} across {plural(idx.orders, 'order')}</p>
-        </div>
+        <Headline k={`${seed}`}>
+          {info ? (
+            <>
+              <p className="hl-line">
+                <b className="fig">{shorten(info.name, 64)}</b> sold <Fig value={info.net} format={(v) => money(v, currency)} /> in {plural(info.orders, 'order')}.
+              </p>
+              <p className="hl-line hl-sub">
+                {together[0] ? `People who bought it also picked up ${together[0].name}.` : `No other order contains it yet, so the lists lean on its ${info.subcategory ? 'sub-category' : 'description'}.`}
+              </p>
+            </>
+          ) : null}
+        </Headline>
         <label className="select-wrap select-wide">
-          <span>Find a product</span>
-          <input className="field" list="product-list" value={query} placeholder={info?.name ?? 'Type a product name'} onChange={(e) => setQuery(e.target.value)} />
+          <span>Look up any product</span>
+          <input className="field" list="product-list" value={query} placeholder="Type a product name" onChange={(e) => setQuery(e.target.value)} />
           <datalist id="product-list">
             {[...byName.keys()].slice(0, 3000).map((n) => (
               <option key={n} value={n} />
@@ -87,19 +95,6 @@ export function Products() {
           </datalist>
         </label>
       </header>
-
-      {info && (
-        <div className="shelf-label">
-          <div>
-            <span className="shelf-cat">{[info.category, info.subcategory].filter(Boolean).join(' / ') || 'Uncategorised'}</span>
-            <h3>{info.name}</h3>
-          </div>
-          <div className="shelf-price">
-            <b>{money(info.net, currency)}</b>
-            <span>in {plural(info.orders, 'order')}</span>
-          </div>
-        </div>
-      )}
 
       <div className="trio">
         <Panel glass title="Bought in the same order">
@@ -113,6 +108,7 @@ export function Products() {
         </Panel>
       </div>
 
+      <Details label="Show pairs that sell together">
       <div className="split">
         <Panel
           title="Item pairs seen more than once"
@@ -161,6 +157,7 @@ export function Products() {
           On later orders in this sample store, guessing the other items in a basket from one item worked {evalProducts.popular.hit_rate_at_5_pct}% of the time with plain best sellers, {evalProducts['together+popular'].hit_rate_at_5_pct}% with bought-together and {evalProducts.similar.hit_rate_at_5_pct}% with similar descriptions. Baskets here rarely repeat, so use these lists for browsing ideas rather than as predictions.
         </p>
       )}
+      </Details>
     </div>
   )
 }

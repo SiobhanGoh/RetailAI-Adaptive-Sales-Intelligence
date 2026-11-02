@@ -41,8 +41,8 @@ interface AppState {
   setCompare: (c: CompareMode) => void
   currency: Currency
   setCurrency: (c: Currency) => void
-  theme: 'console' | 'showroom'
-  setTheme: (t: 'console' | 'showroom') => void
+  theme: Theme
+  setTheme: (t: Theme) => void
   loadTable: (name: string, records: RawRecord[], columns: string[], bundled?: boolean) => void
   loadBundled: () => void
   remap: (mapping: Mapping, options: Partial<CleanOptions>) => void
@@ -67,12 +67,19 @@ export function useApp(): AppState {
   return v
 }
 
-function readTheme(): 'console' | 'showroom' {
+export type Theme = 'light' | 'dark'
+
+/** A saved choice wins, then an explicit host setting, then the device's light/dark preference. */
+export function initialTheme(): Theme {
   try {
-    return localStorage.getItem('retailai-theme') === 'showroom' ? 'showroom' : 'console'
+    const saved = localStorage.getItem('retailai-theme')
+    if (saved === 'light' || saved === 'dark') return saved
   } catch {
-    return 'console'
+    /* storage unavailable */
   }
+  const host = document.documentElement.dataset.theme
+  if (host === 'light' || host === 'dark') return host
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -85,10 +92,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [report, setReport] = useState(false)
   const [compare, setCompare] = useState<CompareMode>('previous')
   const [currency, setCurrency] = useState<Currency>('USD')
-  const [theme, setThemeRaw] = useState<'console' | 'showroom'>(readTheme)
+  const [theme, setThemeRaw] = useState<Theme>(initialTheme)
   const [printSeq, setPrintSeq] = useState(0)
 
-  const setTheme = useCallback((t: 'console' | 'showroom') => {
+  const setTheme = useCallback((t: Theme) => {
     setThemeRaw(t)
     try {
       localStorage.setItem('retailai-theme', t)
@@ -103,7 +110,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const adopt = useCallback((next: Dataset) => {
     setDs(next)
-    setFiltersRaw({ from: next.minDay, to: next.maxDay, dims: {} })
+    // Open on the latest 52 weeks when there is at least two years of data, so every
+    // figure has a comparison from the first glance. Shorter files open on everything.
+    const long = Number.isFinite(next.minDay) && next.maxDay - next.minDay >= 2 * 364
+    setFiltersRaw({ from: long ? next.maxDay - 363 : next.minDay, to: next.maxDay, dims: {} })
     setPrintSeq((s) => s + 1)
   }, [])
 

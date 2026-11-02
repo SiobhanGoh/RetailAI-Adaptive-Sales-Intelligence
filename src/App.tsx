@@ -34,7 +34,7 @@ function Screen({ onOpen }: { onOpen: () => void }) {
   const screen = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     if (reducedMotion() || !screen.current) return
-    gsap.fromTo(screen.current, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', clearProps: 'transform' })
+    gsap.fromTo(screen.current.querySelectorAll('.mod > *, .report > *'), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, stagger: 0.06, ease: 'power3.out', clearProps: 'transform,opacity' })
   }, [module, report])
 
   const body = useMemo(() => {
@@ -104,7 +104,6 @@ function Console() {
     tl.from(q('.order'), { y: -70, rotate: (i) => (i % 2 ? 7 : -6), opacity: 0, duration: 0.9, stagger: 0.06, ease: 'elastic.out(1, 0.55)', clearProps: 'transform,opacity' })
       .from(q('.band-cell'), { opacity: 0, y: -6, duration: 0.35, stagger: 0.05 }, 0.1)
       .from(q('.ticket'), { y: 26, opacity: 0, duration: 0.6, stagger: 0.07 }, 0.25)
-      .from(q('.panel-scope .scope-line'), { strokeDashoffset: 4000, strokeDasharray: 4000, duration: 1.4, ease: 'power2.inOut', clearProps: 'strokeDasharray,strokeDashoffset' }, 0.35)
       .from(q('.tuning'), { opacity: 0, y: 12, duration: 0.5 }, 0.4)
   }, [ds])
 

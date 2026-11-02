@@ -62,6 +62,8 @@ export function Scope({
   }, [points, forecast, compare, height])
 
   if (!points.length) return <div ref={ref} className="scope" style={{ height }} />
+  // Re-draw the line (and replay its draw-in) whenever the data changes.
+  const drawKey = `${points.length}-${points[0].end}-${Math.round(points[points.length - 1].y)}`
 
   const ln = line<ScopePoint>().x((p) => x(p.end)).y((p) => y(p.y)).curve(curveMonotoneX)
   const fill = area<ScopePoint>().x((p) => x(p.end)).y0(y(0)).y1((p) => y(p.y)).curve(curveMonotoneX)
@@ -117,8 +119,8 @@ export function Scope({
           </text>
         ))}
         {compare && compare.length > 1 && <path d={ln(compare) ?? ''} className="scope-compare" />}
-        <path d={fill(points) ?? ''} fill={`url(#fill-${id})`} />
-        <path d={ln(points) ?? ''} className="scope-line" filter={`url(#glow-${id})`} />
+        <path key={`f${drawKey}`} d={fill(points) ?? ''} fill={`url(#fill-${id})`} className="scope-fill" />
+        <path key={`l${drawKey}`} d={ln(points) ?? ''} pathLength={1} className="scope-line" filter={`url(#glow-${id})`} />
         {fcBand && <path d={band(fcBand) ?? ''} className="scope-band" />}
         {fcLine && <path d={ln(fcLine) ?? ''} className="scope-forecast" />}
         {points.filter((p) => p.partial).map((p) => (

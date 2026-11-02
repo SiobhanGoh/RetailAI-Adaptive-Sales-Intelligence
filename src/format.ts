@@ -32,14 +32,15 @@ export function guessCurrency(samples: unknown[]): Currency | null {
   return null
 }
 
-const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 2 })
+const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 })
+const compactM = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 2 })
 const whole = new Intl.NumberFormat('en', { maximumFractionDigits: 0 })
 const twoDp = new Intl.NumberFormat('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export function money(v: number, c: Currency, mode: 'compact' | 'whole' | 'exact' = 'compact'): string {
   const sign = v < 0 ? '−' : ''
   const a = Math.abs(v)
-  const body = mode === 'compact' ? (a >= 10_000 ? compact.format(a) : whole.format(a)) : mode === 'whole' ? whole.format(a) : twoDp.format(a)
+  const body = mode === 'compact' ? (a >= 1e6 ? compactM.format(a) : a >= 10_000 ? compact.format(a) : whole.format(a)) : mode === 'whole' ? whole.format(a) : twoDp.format(a)
   return `${sign}${SYMBOL[c]}${body}`
 }
 
@@ -81,6 +82,13 @@ export const fmtMonth = (d: number) => monthFmt.format(dayToDate(d))
 export function rangeLabel(from: number, to: number): string {
   if (!Number.isFinite(from)) return 'All rows'
   return `${fmtDay(from)} – ${fmtDay(to)}`
+}
+
+/** Shorten long names at a word boundary. */
+export function shorten(s: string, max = 60): string {
+  if (s.length <= max) return s
+  const cut = s.slice(0, max).replace(/[\s,;:–-]+\S*$/, '')
+  return `${cut}…`
 }
 
 export function plural(n: number, one: string, many = `${one}s`): string {

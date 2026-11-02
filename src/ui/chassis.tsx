@@ -84,12 +84,12 @@ export function Utilities({ onFilters, onUpload }: { onFilters: () => void; onUp
       <button
         type="button"
         className="btn btn-metal btn-icon"
-        onClick={() => setTheme(theme === 'console' ? 'showroom' : 'console')}
-        aria-label={theme === 'console' ? 'Switch to the graphite finish' : 'Switch to the aluminium finish'}
-        title={theme === 'console' ? 'Graphite finish' : 'Aluminium finish'}
+        onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+        aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+        title={theme === 'light' ? 'Dark mode' : 'Light mode'}
       >
         <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
-          {theme === 'console' ? <path d="M13.5 3.5a7 7 0 1 0 3 9.6A6 6 0 0 1 13.5 3.5Z" fill="currentColor" /> : <circle cx="10" cy="10" r="4.5" fill="currentColor" />}
+          {theme === 'light' ? <path d="M13.5 3.5a7 7 0 1 0 3 9.6A6 6 0 0 1 13.5 3.5Z" fill="currentColor" /> : <circle cx="10" cy="10" r="4.5" fill="currentColor" />}
         </svg>
       </button>
     </div>

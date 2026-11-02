@@ -26,7 +26,7 @@ export function TagBars({ items, currency, max = 10, onPick, picked }: { items: 
           </>
         )
         return (
-          <li key={s.key} className={on ? 'on' : ''}>
+          <li key={s.key} className={on ? 'on' : ''} style={{ ['--n' as string]: String(i) }}>
             {onPick ? (
               <button type="button" className="tagbar" onClick={() => onPick(s.key)} aria-pressed={on} title={`Filter to ${s.key}`}>
                 {body}
@@ -83,7 +83,7 @@ export function Heat({ cells, rows, cols, format, label, max }: { cells: (number
         <div role="row" className="heat-row" key={rows[i]}>
           <span role="rowheader">{rows[i]}</span>
           {row.map((v, j) => (
-            <span role="cell" key={j} className={v === null ? 'heat-cell na' : 'heat-cell'} style={v === null ? undefined : { ['--t' as string]: String(Math.min(1, Math.max(0, v) / top)), color: Math.max(0, v) / top > 0.5 ? '#2e1800' : '#f3e8d8' }} title={v === null ? 'Not observed yet' : format(v)}>
+            <span role="cell" key={j} className={v === null ? 'heat-cell na' : 'heat-cell'} style={v === null ? undefined : { ['--i' as string]: String(i * row.length + j), ['--t' as string]: String(Math.min(1, Math.max(0, v) / top)), color: Math.max(0, v) / top > 0.5 ? '#2e1800' : '#f3e8d8' }} title={v === null ? 'Not observed yet' : format(v)}>
               <span className="heat-val">{v === null ? '' : format(v)}</span>
             </span>
           ))}
