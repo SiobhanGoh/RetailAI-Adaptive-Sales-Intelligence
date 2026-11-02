@@ -35,7 +35,7 @@ export function DisplayBand() {
 
 const press = (el: HTMLElement) => {
   if (reducedMotion()) return
-  gsap.fromTo(el, { rotate: -3, y: 4 }, { rotate: 0, y: 0, duration: 0.6, ease: 'elastic.out(1, 0.45)' })
+  gsap.fromTo(el, { rotate: -3, y: 4 }, { rotate: 0, y: 0, duration: 0.6, ease: 'elastic.out(1, 0.45)', clearProps: 'transform' })
 }
 
 export function TicketRail() {
