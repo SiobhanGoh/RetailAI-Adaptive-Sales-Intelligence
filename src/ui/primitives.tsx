@@ -209,9 +209,9 @@ const ICONS: Record<DockIcon, ReactNode> = {
 /** Extra views for a screen. They live as icons on a floating dock at the side of the screen;
  *  pointing at one slides its title out, and clicking springs a liquid-glass sheet out of the icon.
  *  `inline` keeps the old in-page drawer, for content that has to be seen straight away. */
-export function Details({ label = 'Show details', title, icon = 'pie', children, defaultOpen = false, inline = false, actions }: { label?: string; title?: string; icon?: DockIcon; children: ReactNode; defaultOpen?: boolean; inline?: boolean; actions?: ReactNode }) {
-  if (inline) return <InlineDetails label={label} defaultOpen={defaultOpen}>{children}</InlineDetails>
-  return <DockSheet title={title ?? label.replace(/^Show (the )?/, '').replace(/^./, (c) => c.toUpperCase())} icon={icon} actions={actions}>{children}</DockSheet>
+export function Details({ label = 'Show details', title, icon = 'pie', children, defaultOpen = false, inline = false, actions, openKey }: { label?: string; title?: string; icon?: DockIcon; children: ReactNode; defaultOpen?: boolean; inline?: boolean; actions?: ReactNode; openKey?: string }) {
+  if (inline) return <InlineDetails label={label} defaultOpen={defaultOpen} openKey={openKey}>{children}</InlineDetails>
+  return <DockSheet title={title ?? label.replace(/^Show (the )?/, '').replace(/^./, (c) => c.toUpperCase())} icon={icon} actions={actions} openKey={openKey}>{children}</DockSheet>
 }
 
 const glint = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -222,7 +222,7 @@ const glint = (e: React.PointerEvent<HTMLDivElement>) => {
   card.style.setProperty('--my', `${e.clientY - r.top}px`)
 }
 
-function DockSheet({ title, icon, children, actions }: { title: string; icon: DockIcon; children: ReactNode; actions?: ReactNode }) {
+function DockSheet({ title, icon, children, actions, openKey }: { title: string; icon: DockIcon; children: ReactNode; actions?: ReactNode; openKey?: string }) {
   const [dock, setDock] = useState<HTMLElement | null>(null)
   const [mounted, setMounted] = useState(false)
   const btn = useRef<HTMLButtonElement>(null)
@@ -299,6 +299,18 @@ function DockSheet({ title, icon, children, actions }: { title: string; icon: Do
     setMounted(true)
   }
 
+  // Anything on the page can ask for this sheet by key, e.g. a "Check the matching" button.
+  useEffect(() => {
+    if (!openKey) return
+    const onAsk = (e: Event) => {
+      if ((e as CustomEvent).detail !== openKey || mounted) return
+      dispatchEvent(new CustomEvent('retailai-sheet', { detail: id }))
+      setMounted(true)
+    }
+    addEventListener('retailai-open', onAsk)
+    return () => removeEventListener('retailai-open', onAsk)
+  }, [openKey, mounted, id])
+
   const button = (
     <button ref={btn} type="button" className={`dock-btn ${mounted ? 'on' : ''}`} aria-expanded={mounted} aria-controls={id} onClick={open}>
       <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden>
@@ -341,7 +353,7 @@ function DockSheet({ title, icon, children, actions }: { title: string; icon: Do
   )
 }
 
-function InlineDetails({ label, children, defaultOpen }: { label: string; children: ReactNode; defaultOpen: boolean }) {
+function InlineDetails({ label, children, defaultOpen, openKey }: { label: string; children: ReactNode; defaultOpen: boolean; openKey?: string }) {
   // `mounted` keeps the body in the page while it closes, so it can animate out as well as in.
   const [open, setOpen] = useState(defaultOpen)
   const [mounted, setMounted] = useState(defaultOpen)
@@ -378,8 +390,23 @@ function InlineDetails({ label, children, defaultOpen }: { label: string; childr
       .to(el, { height: 0, opacity: 0, overflow: 'hidden', duration: 0.38, ease: 'power3.inOut' }, 0.08)
   }
 
+  const section = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!openKey) return
+    const onAsk = (e: Event) => {
+      if ((e as CustomEvent).detail !== openKey) return
+      if (!open) {
+        setMounted(true)
+        setOpen(true)
+      }
+      section.current?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' })
+    }
+    addEventListener('retailai-open', onAsk)
+    return () => removeEventListener('retailai-open', onAsk)
+  }, [openKey, open])
+
   return (
-    <section className={`details ${open ? 'open' : ''}`}>
+    <section className={`details ${open ? 'open' : ''}`} ref={section}>
       <button type="button" className="details-toggle" aria-expanded={open} onClick={toggle}>
         <span className="details-chev" aria-hidden />
         {open ? 'Hide details' : label}
@@ -392,6 +419,9 @@ function InlineDetails({ label, children, defaultOpen }: { label: string; childr
     </section>
   )
 }
+
+/** Ask a details sheet (or in-page drawer) with this key to open. */
+export const openDetails = (key: string) => dispatchEvent(new CustomEvent('retailai-open', { detail: key }))
 
 /** A round icon button that saves a CSV; its name shows as a tooltip. */
 export function SaveCsv({ onClick, label }: { onClick: () => void; label: string }) {

@@ -14,8 +14,7 @@ import { dayToISO, weekday } from '../engine/values'
 // ------------------------------------------------------------------ status chips
 
 export function DisplayBand({ onPickSample }: { onPickSample: () => void }) {
-  const { ds, filters, sampleId, pickDims } = useApp()
-  const active = Object.values(filters.dims).reduce((a, v) => a + (v?.length ?? 0), 0)
+  const { ds, filters, sampleId } = useApp()
   const sample = SAMPLES.find((s) => s.id === sampleId)
   return (
     <div className="band" role="status" aria-live="polite">
@@ -26,11 +25,6 @@ export function DisplayBand({ onPickSample }: { onPickSample: () => void }) {
         <span className="band-chev" aria-hidden />
       </button>
       <span className="band-cell">{ds?.capabilities.dates ? rangeLabel(filters.from, filters.to) : 'Undated rows'}</span>
-      {active > 0 && (
-        <button type="button" className="band-cell band-filter" onClick={() => pickDims({})} title="Clear the group filters; dates stay as they are">
-          {plural(active, 'filter')} on <span className="band-filter-x">Show all</span>
-        </button>
-      )}
     </div>
   )
 }
@@ -69,15 +63,67 @@ export function TicketRail() {
   )
 }
 
-export function Utilities({ onFilters, onUpload }: { onFilters: () => void; onUpload: () => void }) {
-  const { filters, setReport, report, theme, setTheme, ds } = useApp()
-  const active = Object.values(filters.dims).reduce((a, v) => a + (v?.length ?? 0), 0)
+function useFilterChips() {
+  const { ds, filters, pickDims } = useApp()
+  const chips = (Object.entries(filters.dims) as [Dimension, string[] | undefined][]).flatMap(([d, vals]) => (vals ?? []).map((v) => ({ d, v })))
+  const remove = (d: Dimension, v: string) => {
+    const dims = { ...filters.dims }
+    const next = (dims[d] ?? []).filter((x) => x !== v)
+    if (next.length) dims[d] = next
+    else delete dims[d]
+    pickDims(dims)
+  }
+  return { ds, chips, remove, clear: () => pickDims({}) }
+}
+
+/** The filter button sits in the tab row right above the receipt, where it is hard to miss. */
+export function FilterCard({ onOpen }: { onOpen: () => void }) {
+  const { ds, chips } = useFilterChips()
+  if (!ds?.capabilities.dimensions.length) return <div className="filtercard filtercard-empty" aria-hidden />
+  const names = ds.capabilities.dimensions.slice(0, 2).map((d) => DIMENSION_LABEL[d].toLowerCase())
+  return (
+    <div className={`filtercard ${chips.length ? 'on' : ''}`}>
+      <button type="button" className="filtercard-btn" onClick={onOpen} title={`Choose ${names.join(', ')} and more. Shortcut: F`}>
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
+          <path d="M3 4.5h14l-5.5 6.5v4.5l-3 1.5v-6z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+        </svg>
+        <span>{chips.length ? `Filtered by ${plural(chips.length, 'choice')}` : 'Filter the data'}</span>
+        {chips.length ? <b className="filtercard-count">{chips.length}</b> : <kbd aria-hidden>F</kbd>}
+      </button>
+    </div>
+  )
+}
+
+/** Active filters, as chips across the top of the receipt column; each can be removed on the spot. */
+export function FilterChips({ onOpen }: { onOpen: () => void }) {
+  const { chips, remove, clear } = useFilterChips()
+  if (!chips.length) return null
+  return (
+    <div className="filterchips" role="group" aria-label="Active filters">
+      {chips.slice(0, 4).map((c) => (
+        <span key={c.d + c.v} className="fchip" title={`${DIMENSION_LABEL[c.d]}: ${c.v}`}>
+          <span className="fchip-name">{c.v}</span>
+          <button type="button" aria-label={`Remove ${c.v}`} onClick={() => remove(c.d, c.v)}>
+            <svg viewBox="0 0 12 12" width="9" height="9" aria-hidden>
+              <path d="M2.5 2.5l7 7m0-7-7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </button>
+        </span>
+      ))}
+      {chips.length > 4 && (
+        <button type="button" className="fchip fchip-more" onClick={onOpen}>
+          +{chips.length - 4} more
+        </button>
+      )}
+      <button type="button" className="fchip-clear" onClick={clear}>Show all</button>
+    </div>
+  )
+}
+
+export function Utilities({ onUpload }: { onUpload: () => void }) {
+  const { setReport, report, theme, setTheme } = useApp()
   return (
     <div className="utils">
-      <button type="button" className="btn btn-metal" onClick={onFilters} disabled={!ds?.capabilities.dimensions.length} title="Choose regions, categories and more. Shortcut: F">
-        Filters
-        {active > 0 && <span className="count">{active}</span>}
-      </button>
       <button type="button" className={`btn btn-metal ${report ? 'on' : ''}`} aria-pressed={report} onClick={() => setReport(!report)} title="Open the printable report. Shortcut: P">
         Report
       </button>

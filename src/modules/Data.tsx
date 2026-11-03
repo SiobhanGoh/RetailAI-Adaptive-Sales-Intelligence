@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Details, Fig, Headline, Panel, Segmented } from '../ui/primitives'
+import { Details, Fig, Headline, Panel, Segmented, openDetails } from '../ui/primitives'
 import { KIND_LABEL, SAMPLES } from '../samples'
 import { ROLE_LABEL, ROLE_ORDER } from '../engine/mapping'
 import type { DateConvention, Mapping, Role } from '../engine/types'
 import { CURRENCIES, fmtDay, money, plural, type Currency } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
 
+const KEY_ROLES: Role[] = ['orderDate', 'revenue', 'unitPrice', 'quantity', 'productName', 'productId', 'customerId', 'category', 'region']
+
 const CONF_LABEL = { exact: 'Matched', likely: 'Likely', guess: 'Best guess' } as const
 
 export function Data({ onOpen }: { onOpen: () => void }) {
-  const { ds, source, remap, currency, setCurrency, loadBundled, sampleId } = useApp()
+  const { ds, source, remap, currency, setCurrency, loadBundled, sampleId, setModule } = useApp()
   const sample = SAMPLES.find((s) => s.id === sampleId)
   const [draft, setDraft] = useState<Mapping>({})
   useEffect(() => setDraft(ds?.mapping ?? {}), [ds])
@@ -56,48 +58,125 @@ export function Data({ onOpen }: { onOpen: () => void }) {
         </div>
       </header>
 
-        {sample && (
-          <Panel title="About this sample" className="panel-about">
-            <p>
-              <span className={`kind kind-${sample.kind}`}>{KIND_LABEL[sample.kind]}</span> {sample.blurb} {sample.shows}
-            </p>
-            <p className="fine">
-              {sample.credit.text}{' '}
-              {sample.credit.href && (
-                <a href={sample.credit.href} target="_blank" rel="noreferrer">
-                  Source
-                </a>
-              )}
-              {sample.credit.licence && (
-                <>
-                  {' '}
-                  Licence:{' '}
-                  <a href={sample.credit.licenceHref} target="_blank" rel="noreferrer">
-                    {sample.credit.licence}
-                  </a>
-                  .
-                </>
-              )}
-            </p>
-          </Panel>
-        )}
-        <Panel title="What we found" className="panel-quality">
-          <ul className="quality">
-            <li className="q-info">
-              {plural(ds.rows.length, 'row')} used of {ds.rawRowCount.toLocaleString('en')} read
-              {ds.capabilities.dates ? `, from ${fmtDay(ds.minDay)} to ${fmtDay(ds.maxDay)}` : ''}.
-            </li>
-            {ds.quality.map((q) => (
-              <li key={q.text} className={`q-${q.level}`}>
-                {q.text}
-                {q.count ? <b> {q.count.toLocaleString('en')}</b> : null}
+      {/* How the file became numbers, as four connected steps. */}
+      <ol className="flow" aria-label="How your file was read">
+        <li className="flow-step">
+          <span className="flow-dot" aria-hidden>1</span>
+          <h3>Your file</h3>
+          <p className="flow-big flow-name">{ds.name}</p>
+          <p className="quiet">
+            {plural(ds.rawRowCount, 'row')} and {plural(ds.columns.length, 'column')} read
+          </p>
+          {sample ? (
+            <>
+              <p className="flow-note">
+                <span className={`kind kind-${sample.kind}`}>{KIND_LABEL[sample.kind]}</span> {sample.shows}
+              </p>
+              <p className="fine">
+                {sample.credit.text}{' '}
+                {sample.credit.href && (
+                  <a href={sample.credit.href} target="_blank" rel="noreferrer">Source</a>
+                )}
+                {sample.credit.licence && (
+                  <>
+                    {' '}Licence:{' '}
+                    <a href={sample.credit.licenceHref} target="_blank" rel="noreferrer">{sample.credit.licence}</a>.
+                  </>
+                )}
+              </p>
+            </>
+          ) : (
+            <p className="flow-note">Read in this browser tab only. Nothing is uploaded.</p>
+          )}
+        </li>
+
+        <li className="flow-step">
+          <span className="flow-dot" aria-hidden>2</span>
+          <h3>Columns understood</h3>
+          <p className="flow-big">
+            {Object.keys(ds.mapping).length} <small>of {ds.columns.length}</small>
+          </p>
+          <span className="flow-bar" aria-hidden>
+            <i style={{ width: `${(Object.keys(ds.mapping).length / Math.max(1, ds.columns.length)) * 100}%` }} />
+          </span>
+          <ul className="flow-maps">
+            {KEY_ROLES.filter((r) => ds.mapping[r]).slice(0, 5).map((r) => (
+              <li key={r}>
+                <span>{ROLE_LABEL[r]}</span>
+                <svg viewBox="0 0 16 8" width="16" height="8" aria-hidden>
+                  <path d="M15 4H1m3-3L1 4l3 3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <b>{ds.mapping[r]}</b>
               </li>
             ))}
           </ul>
-        </Panel>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => openDetails('columns')}>Check the matching</button>
+        </li>
 
+        <li className="flow-step">
+          <span className="flow-dot" aria-hidden>3</span>
+          <h3>Checks</h3>
+          <p className="flow-big">
+            {warnings ? (
+              <>
+                {warnings} <small>{warnings === 1 ? 'thing to check' : 'things to check'}</small>
+              </>
+            ) : (
+              <>
+                All clear
+              </>
+            )}
+          </p>
+          <ul className="flow-checks">
+            {ds.quality.length ? (
+              ds.quality.slice(0, 4).map((q) => (
+                <li key={q.text} className={`check-${q.level}`}>
+                  <span className="check-mark" aria-hidden>{q.level === 'info' ? '✓' : '!'}</span>
+                  <span>
+                    {q.text}
+                    {q.count ? <b> {q.count.toLocaleString('en')}</b> : null}
+                  </span>
+                </li>
+              ))
+            ) : (
+              <li className="check-info">
+                <span className="check-mark" aria-hidden>✓</span>
+                <span>No blank dates, unreadable amounts or duplicate rows found.</span>
+              </li>
+            )}
+          </ul>
+        </li>
 
-      <Details label="Show and fix the column matching" title="Column matching" icon="columns" inline={!source?.bundled} defaultOpen={!source?.bundled}>
+        <li className="flow-step flow-ready">
+          <span className="flow-dot" aria-hidden>4</span>
+          <h3>Ready</h3>
+          <p className="flow-big">
+            {ds.rows.length.toLocaleString('en')} <small>rows</small>
+          </p>
+          <dl className="flow-facts">
+            {ds.capabilities.dates && (
+              <div>
+                <dt>From</dt>
+                <dd>{fmtDay(ds.minDay)} to {fmtDay(ds.maxDay)}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Dates</dt>
+              <dd>{ds.options.dateConvention === 'dmy' ? 'day/month/year' : 'month/day/year'}</dd>
+            </div>
+            <div>
+              <dt>Revenue</dt>
+              <dd>{ds.revenueSource === 'revenue' ? `from ${ds.mapping.revenue}` : `price × quantity`}</dd>
+            </div>
+          </dl>
+          <div className="flow-actions">
+            <button type="button" className="btn btn-sticker btn-sm" onClick={() => setModule('overview')}>See the overview</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => openDetails('rows')}>See the cleaned rows</button>
+          </div>
+        </li>
+      </ol>
+
+      <Details label="Show and fix the column matching" title="Column matching" icon="columns" openKey="columns" inline={!source?.bundled} defaultOpen={!source?.bundled}>
         <div className="data-layout">
         <Panel title="What each column means" className="panel-map">
           <p className="quiet">Columns are matched by whole words and then checked against their values. Change any match and apply.</p>
@@ -189,7 +268,7 @@ export function Data({ onOpen }: { onOpen: () => void }) {
         </div>
       </Details>
 
-      <Details title="Cleaned rows and how numbers are made" icon="rows">
+      <Details title="Cleaned rows and how numbers are made" icon="rows" openKey="rows">
         <Panel title="First rows after cleaning" className="panel-preview">
           <div className="scroll-x">
             <table className="table table-compact">

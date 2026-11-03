@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { gsap } from 'gsap'
 import { AppProvider, MODULES, useApp } from './state'
 import { ReceiptProvider } from './receipt'
-import { DisplayBand, DropZone, FilterSheet, ReceiptPrinter, SamplePicker, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
+import { DisplayBand, DropZone, FilterCard, FilterChips, FilterSheet, ReceiptPrinter, SamplePicker, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
 import { reducedMotion } from './ui/primitives'
 import { Overview } from './modules/Overview'
 import { Sales } from './modules/Sales'
@@ -118,12 +118,18 @@ function Console() {
       <header className="topbar">
         <Logo />
         <DisplayBand onPickSample={() => setSamplesOpen(true)} />
-        <Utilities onFilters={openFilters} onUpload={pick} />
+        <Utilities onUpload={pick} />
       </header>
-      <TicketRail />
+      <div className="railrow">
+        <TicketRail />
+        <FilterCard onOpen={openFilters} />
+      </div>
       <div className="deckrow">
         <Screen onOpen={pick} />
-        <ReceiptPrinter />
+        <div className="printcol">
+          <FilterChips onOpen={openFilters} />
+          <ReceiptPrinter />
+        </div>
       </div>
       <nav className="dock" id="dock" aria-label="More on this screen" />
       <footer className="controls">
