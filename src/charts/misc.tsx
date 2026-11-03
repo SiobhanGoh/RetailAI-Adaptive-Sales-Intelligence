@@ -8,15 +8,16 @@ export const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(
 
 /** Horizontal bars styled as shelf price tags. */
 export function TagBars({ items, currency, max = 10, onPick, picked }: { items: { key: string; net: number; share: number }[]; currency: Currency; max?: number; onPick?: (k: string) => void; picked?: string[] }) {
-  const shown = items.slice(0, max)
+  // A picked row outside the top few still shows, at its real rank.
+  const shown = items.filter((s, i) => i < max || picked?.includes(s.key))
   const top = Math.max(1, ...shown.map((s) => s.net))
   return (
-    <ol className="tagbars">
+    <ol className={`tagbars ${picked?.length ? 'picking' : ''}`}>
       {shown.map((s, i) => {
         const on = picked?.includes(s.key)
         const body = (
           <>
-            <span className="tagbar-rank" aria-hidden>{i + 1}</span>
+            <span className="tagbar-rank" aria-hidden>{items.indexOf(s) + 1}</span>
             <span className="tagbar-name">{s.key}</span>
             <span className="tagbar-track" aria-hidden>
               <span className="tagbar-fill" style={{ width: `${Math.max(0.5, (s.net / top) * 100)}%` }} />
@@ -28,7 +29,7 @@ export function TagBars({ items, currency, max = 10, onPick, picked }: { items: 
         return (
           <li key={s.key} className={on ? 'on' : ''} style={{ ['--n' as string]: String(i) }}>
             {onPick ? (
-              <button type="button" className="tagbar" onClick={() => onPick(s.key)} aria-pressed={on} title={`Filter to ${s.key}`}>
+              <button type="button" className="tagbar" onClick={() => onPick(s.key)} aria-pressed={on} title={on ? `Stop filtering to ${s.key}` : `Filter to ${s.key}`}>
                 {body}
               </button>
             ) : (

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Dataset, Mapping, CleanOptions } from './engine/types'
 import { buildDataset, type RawRecord } from './engine/clean'
 import { parseCsvText } from './engine/load'
@@ -34,6 +34,8 @@ interface AppState {
   error: string | null
   filters: Filters
   setFilters: (f: Filters) => void
+  /** Change the group filters as a step the browser's Back button can undo. */
+  pickDims: (dims: Filters['dims']) => void
   resetFilters: () => void
   module: ModuleId
   setModule: (m: ModuleId) => void
@@ -92,6 +94,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState<string | null>('Loading the sample store')
   const [error, setError] = useState<string | null>(null)
   const [filters, setFiltersRaw] = useState<Filters>({ from: NaN, to: NaN, dims: {} })
+  const filtersRef = useRef(filters)
+  filtersRef.current = filters
   const [module, setModuleRaw] = useState<ModuleId>('overview')
   const [report, setReport] = useState(false)
   const [compare, setCompare] = useState<CompareMode>('previous')
@@ -188,6 +192,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPrintSeq((s) => s + 1)
   }, [])
 
+  // Picking a bar is a step you can go back from: each pick is a browser history entry, and Back
+  // restores the groups that were picked before it. Dates are left as they are.
+  const pickDims = useCallback((dims: Filters['dims']) => {
+    try {
+      if (!history.state?.retailaiDims) history.replaceState({ ...history.state, retailaiDims: filtersRef.current.dims }, '')
+      history.pushState({ retailaiDims: dims }, '')
+    } catch {
+      /* history can be unavailable in some embeds; the pick still applies */
+    }
+    setFiltersRaw((f) => ({ ...f, dims }))
+    setPrintSeq((s) => s + 1)
+  }, [])
+  useEffect(() => {
+    const back = (e: PopStateEvent) => {
+      const dims = e.state?.retailaiDims
+      if (!dims) return
+      setFiltersRaw((f) => ({ ...f, dims }))
+      setPrintSeq((s) => s + 1)
+    }
+    addEventListener('popstate', back)
+    return () => removeEventListener('popstate', back)
+  }, [])
+
   const resetFilters = useCallback(() => {
     if (ds) setFilters({ from: ds.minDay, to: ds.maxDay, dims: {} })
   }, [ds, setFilters])
@@ -211,7 +238,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [ds, filters, compare])
 
   const value: AppState = {
-    source, ds, loading, error, filters, setFilters, resetFilters, module, setModule, report, setReport,
+    source, ds, loading, error, filters, setFilters, pickDims, resetFilters, module, setModule, report, setReport,
     compare, setCompare, currency, setCurrency, theme, setTheme, loadTable, loadBundled, loadSample, sampleId: source?.sample ?? null, remap,
     setLoading, setError, printSeq, ...derived,
   }

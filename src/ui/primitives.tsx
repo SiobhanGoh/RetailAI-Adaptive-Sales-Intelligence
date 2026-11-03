@@ -61,7 +61,7 @@ export function Readout({ value, currency, kind = 'money', size = 'md', label }:
   )
 }
 
-export function Delta({ value, label }: { value: number | undefined; label: string }) {
+export function Delta({ value, label, was }: { value: number | undefined; label: string; was?: string }) {
   if (value === undefined || !Number.isFinite(value)) return <span className="delta delta-none">Nothing earlier to compare with</span>
   const dir = value > 0.0005 ? 'up' : value < -0.0005 ? 'down' : 'flat'
   return (
@@ -71,7 +71,7 @@ export function Delta({ value, label }: { value: number | undefined; label: stri
         {dir === 'down' && <path d="M5 9 1 2h8z" fill="currentColor" />}
         {dir === 'flat' && <rect x="1" y="4" width="8" height="2" fill="currentColor" />}
       </svg>
-      {signedPct(value)} <span className="delta-vs">vs {label}</span>
+      {signedPct(value)} <span className="delta-vs">{was ? `from ${was}` : `vs ${label}`}</span>
     </span>
   )
 }
@@ -194,29 +194,92 @@ export function Fig({ value, format, tone }: { value: number; format: (v: number
 
 /** "Show details" drawer with a smooth height animation. */
 export function Details({ label = 'Show details', children, defaultOpen = false }: { label?: string; children: ReactNode; defaultOpen?: boolean }) {
+  // `mounted` keeps the body in the page while it closes, so it can animate out as well as in.
   const [open, setOpen] = useState(defaultOpen)
+  const [mounted, setMounted] = useState(defaultOpen)
   const body = useRef<HTMLDivElement>(null)
-  const toggle = () => {
+  const tween = useRef<gsap.core.Timeline | null>(null)
+
+  useLayoutEffect(() => {
     const el = body.current
-    const next = !open
-    setOpen(next)
-    if (!el || reducedMotion()) return
-    if (next) {
-      requestAnimationFrame(() => gsap.fromTo(el, { height: 0, opacity: 0 }, { height: 'auto', opacity: 1, duration: 0.5, ease: 'power3.out', clearProps: 'height' }))
+    if (!el || !open || reducedMotion()) return
+    tween.current?.kill()
+    const cards = el.querySelectorAll(':scope > * > .panel, :scope > .panel')
+    tween.current = gsap
+      .timeline()
+      .fromTo(el, { height: 0, opacity: 0, overflow: 'hidden' }, { height: 'auto', opacity: 1, duration: 0.55, ease: 'power3.out', clearProps: 'height,opacity,overflow' })
+      .fromTo(cards, { y: 18, opacity: 0, scale: 0.97, filter: 'blur(6px)' }, { y: 0, opacity: 1, scale: 1, filter: 'blur(0px)', duration: 0.6, stagger: 0.07, ease: 'power3.out', clearProps: 'transform,opacity,filter' }, 0.08)
+  }, [open, mounted])
+
+  const toggle = () => {
+    if (!open) {
+      setMounted(true)
+      setOpen(true)
+      return
     }
+    setOpen(false)
+    const el = body.current
+    if (!el || reducedMotion()) {
+      setMounted(false)
+      return
+    }
+    tween.current?.kill()
+    tween.current = gsap
+      .timeline({ onComplete: () => setMounted(false) })
+      .to(el.querySelectorAll(':scope > * > .panel, :scope > .panel'), { y: 10, opacity: 0, scale: 0.98, duration: 0.22, stagger: 0.03, ease: 'power2.in' })
+      .to(el, { height: 0, opacity: 0, overflow: 'hidden', duration: 0.38, ease: 'power3.inOut' }, 0.08)
   }
+
+  // A soft highlight follows the pointer across the glass cards.
+  const glint = (e: React.PointerEvent<HTMLDivElement>) => {
+    const card = (e.target as HTMLElement).closest<HTMLElement>('.panel')
+    if (!card) return
+    const r = card.getBoundingClientRect()
+    card.style.setProperty('--mx', `${e.clientX - r.left}px`)
+    card.style.setProperty('--my', `${e.clientY - r.top}px`)
+  }
+
   return (
     <section className={`details ${open ? 'open' : ''}`}>
       <button type="button" className="details-toggle" aria-expanded={open} onClick={toggle}>
         <span className="details-chev" aria-hidden />
         {open ? 'Hide details' : label}
       </button>
-      {open && (
-        <div className="details-body" ref={body}>
+      {mounted && (
+        <div className="details-body" ref={body} onPointerMove={glint}>
           {children}
         </div>
       )}
     </section>
+  )
+}
+
+/** Weekly bars for a ticket; the latest week is lit. Bars rise in one after another. */
+export function MiniBars({ values, label, marker }: { values: number[]; label: string; marker?: number }) {
+  if (values.length < 2) return null
+  const max = Math.max(...values) || 1
+  const n = values.length
+  const key = values.map((v) => Math.round(v)).join('-')
+  return (
+    <svg className="minibars" viewBox={`0 0 ${n * 10} 34`} preserveAspectRatio="none" role="img" aria-label={label} key={key}>
+      {values.map((v, i) => {
+        const h = Math.max(1.5, (v / max) * 32)
+        return <rect key={i} x={i * 10 + 1.5} y={34 - h} width={7} height={h} rx={1.5} className={i === n - 1 && marker === undefined ? 'minibar minibar-now' : 'minibar'} style={{ animationDelay: `${i * 18}ms` }} />
+      })}
+      {marker !== undefined && <line x1={marker * 10} x2={marker * 10} y1={0} y2={34} className="minibars-marker" />}
+    </svg>
+  )
+}
+
+/** One bar split into parts, such as new against returning customers. */
+export function SplitBar({ parts, label }: { parts: { value: number; tone: 'a' | 'b' }[]; label: string }) {
+  const total = parts.reduce((a, p) => a + p.value, 0) || 1
+  return (
+    <div className="splitbar" role="img" aria-label={label}>
+      {parts.map((p, i) => (
+        <span key={i} className={`splitbar-part splitbar-${p.tone}`} style={{ flexGrow: p.value / total }} />
+      ))}
+    </div>
   )
 }
 

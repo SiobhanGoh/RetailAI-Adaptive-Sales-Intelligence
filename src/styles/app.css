@@ -2844,3 +2844,425 @@ button.band-store:hover .band-store-name {
 .deck {
   grid-template-columns: minmax(280px, 1.6fr) repeat(auto-fit, minmax(140px, 1fr));
 }
+
+/* ================================================================ overview, layout B
+   One smoked-glass window holds the anchor number and its weekly line; four short tickets sit
+   underneath with a small figure each. Spacing is generous on purpose: 40px between bands. */
+
+:root {
+  --lg-fill: rgba(255, 252, 245, 0.42);
+  --lg-rim: rgba(255, 255, 255, 0.95);
+  --lg-edge: rgba(255, 255, 255, 0.45);
+  --lg-depth: rgba(120, 95, 60, 0.08);
+  --lg-drop: rgba(60, 45, 30, 0.14);
+  --lg-sheen: rgba(255, 255, 255, 0.55);
+  --lg-glint: rgba(255, 255, 255, 0.45);
+  --lg-ink: #2b2520;
+  --lg-dim: #6f6355;
+  --smoke-fill: rgba(28, 22, 17, 0.64);
+  --orb-a: rgba(255, 160, 80, 0.5);
+  --orb-b: rgba(143, 192, 169, 0.45);
+  --orb-c: rgba(185, 166, 227, 0.4);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+:root[data-theme='dark'] {
+  --lg-fill: rgba(60, 52, 45, 0.4);
+  --lg-rim: rgba(255, 240, 220, 0.2);
+  --lg-edge: rgba(255, 240, 220, 0.1);
+  --lg-depth: rgba(0, 0, 0, 0.25);
+  --lg-drop: rgba(0, 0, 0, 0.42);
+  --lg-sheen: rgba(255, 240, 220, 0.1);
+  --lg-glint: rgba(255, 220, 180, 0.14);
+  --lg-ink: #f1e9dc;
+  --lg-dim: #b3a593;
+  --smoke-fill: rgba(12, 10, 8, 0.6);
+  --orb-a: rgba(255, 140, 60, 0.3);
+  --orb-b: rgba(110, 170, 145, 0.26);
+  --orb-c: rgba(150, 125, 210, 0.24);
+}
+
+.mod-overview {
+  gap: 40px;
+}
+
+.anchor {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.85fr) minmax(0, 2.2fr);
+  gap: 44px;
+  padding: 30px 32px 22px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, var(--glass-2), var(--glass));
+  color: var(--glass-ink);
+  --text: var(--glass-ink);
+  --text-dim: var(--glass-dim);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.55) inset, 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.4), 0 18px 36px rgba(40, 30, 20, 0.16);
+}
+:root[data-theme='dark'] .anchor {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6) inset, 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.5), 0 18px 36px rgba(0, 0, 0, 0.35);
+}
+.anchor-solo {
+  grid-template-columns: minmax(0, 1fr);
+}
+.anchor-lead {
+  display: grid;
+  align-content: space-between;
+  gap: 24px;
+  min-width: 0;
+  container-type: inline-size;
+  padding-bottom: 8px;
+}
+.anchor-label {
+  font-size: 13.5px;
+  color: var(--glass-dim);
+}
+.anchor .readout {
+  color: var(--amber);
+  text-shadow: 0 0 22px rgba(255, 140, 60, 0.45);
+}
+.anchor .readout-xl .readout-digits {
+  font-size: min(96px, 25cqi);
+  font-weight: 250;
+  font-stretch: 118%;
+  letter-spacing: -0.04em;
+}
+.anchor .readout-xl .readout-unit {
+  font-size: min(44px, 11cqi);
+}
+.anchor-foot {
+  display: grid;
+  gap: 6px;
+}
+.anchor .delta {
+  font-size: 15px;
+}
+.anchor .delta-up {
+  color: var(--up-glass);
+}
+.anchor .delta-down {
+  color: var(--down-glass);
+}
+.anchor-note {
+  font-size: 12.5px;
+  color: var(--glass-dim);
+}
+.anchor-chart {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.anchor-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.anchor-chart-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--glass-dim);
+}
+
+.deck-b {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+.deck-b .ticket-body {
+  grid-template-rows: auto auto minmax(36px, 1fr) auto;
+  align-content: stretch;
+  gap: 10px;
+  padding: 22px 24px 18px;
+}
+.ticket-cap {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-dim);
+}
+.ticket-cap b {
+  color: var(--ink);
+  font-weight: 650;
+}
+.minibars {
+  display: block;
+  width: 100%;
+  height: 36px;
+  align-self: end;
+  overflow: visible;
+}
+.minibar {
+  fill: color-mix(in srgb, var(--ink) 20%, transparent);
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: rise 0.7s var(--ease-out) both;
+}
+.minibar-now {
+  fill: var(--amber-hot);
+}
+.minibars-marker {
+  stroke: var(--amber-hot);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+@keyframes rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+.splitbar {
+  display: flex;
+  gap: 3px;
+  height: 12px;
+  align-self: end;
+}
+.splitbar-part {
+  min-width: 6px;
+  border-radius: 4px;
+  transition: flex-grow 0.7s var(--ease-out);
+}
+.splitbar-a {
+  background: color-mix(in srgb, var(--ink) 24%, transparent);
+}
+.splitbar-b {
+  background: var(--amber-hot);
+}
+.mini-mix {
+  grid-row: 2 / span 3;
+  align-self: end;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.mini-mix li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  font-size: 13px;
+}
+.mini-mix span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mini-mix b {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.mini-mix i {
+  grid-column: 1 / -1;
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--track);
+  overflow: hidden;
+}
+.mini-mix i::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w);
+  border-radius: 3px;
+  background: linear-gradient(90deg, #ffc98f, var(--amber-hot));
+  transition: width 0.7s var(--ease-out);
+}
+
+/* ---------------------------------------------------------------- details as liquid glass */
+
+.details-toggle {
+  background: var(--lg-fill);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: inset 0 1px 0 var(--lg-rim), inset 0 0 0 1px var(--lg-edge), 0 6px 16px var(--lg-drop);
+  color: var(--chassis-ink);
+  transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+}
+.details-toggle:hover {
+  transform: translateY(-1px);
+}
+.details-toggle:active {
+  transform: translateY(1px) scale(0.98);
+}
+.details-chev {
+  transition: transform 0.42s var(--ease-out);
+}
+.details-body {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  padding: 6px 0 12px;
+}
+.details-body::before {
+  content: '';
+  position: absolute;
+  inset: 0 2%;
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(36px);
+  background: radial-gradient(28% 50% at 16% 30%, var(--orb-a), transparent 70%), radial-gradient(26% 46% at 60% 72%, var(--orb-b), transparent 70%), radial-gradient(22% 40% at 88% 24%, var(--orb-c), transparent 70%);
+  background-size: 130% 130%;
+  animation: drift 22s ease-in-out infinite alternate;
+}
+@keyframes drift {
+  to {
+    background-position: 60% 40%, 20% 30%, 0% 90%;
+  }
+}
+.details-body .panel {
+  border-radius: 24px;
+  padding: 20px 22px 22px;
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  overflow: hidden;
+}
+.details-body .panel-paper {
+  background: linear-gradient(150deg, var(--lg-sheen), transparent 34%, transparent 70%, color-mix(in srgb, var(--lg-sheen) 40%, transparent)), linear-gradient(var(--lg-fill), var(--lg-fill));
+  box-shadow: inset 0 1px 0 var(--lg-rim), inset 0 0 0 1px var(--lg-edge), inset 0 -14px 28px var(--lg-depth), 0 18px 40px var(--lg-drop);
+  color: var(--lg-ink);
+  --text: var(--lg-ink);
+  --text-dim: var(--lg-dim);
+}
+.details-body .panel-glass {
+  background: linear-gradient(150deg, rgba(255, 230, 200, 0.1), transparent 34%), linear-gradient(var(--smoke-fill), var(--smoke-fill));
+  box-shadow: inset 0 1px 0 rgba(255, 230, 200, 0.22), inset 0 0 0 1px rgba(255, 230, 200, 0.1), 0 18px 40px var(--lg-drop);
+}
+.details-body .panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(240px circle at var(--mx, 30%) var(--my, -20%), var(--lg-glint), transparent 62%);
+  opacity: 0;
+  transition: opacity 0.42s var(--ease-out);
+}
+.details-body .panel-glass::after {
+  background: radial-gradient(240px circle at var(--mx, 30%) var(--my, -20%), rgba(255, 180, 110, 0.18), transparent 62%);
+}
+.details-body .panel:hover::after {
+  opacity: 1;
+}
+.split-glass {
+  gap: 20px;
+}
+.carry {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.ring {
+  width: 100px;
+  height: 100px;
+  flex: none;
+}
+.ring circle {
+  fill: none;
+  stroke-width: 12;
+}
+.ring-bg {
+  stroke: var(--track);
+}
+.ring-fg {
+  stroke: var(--amber-hot);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 0.8s var(--ease-out);
+}
+.ring text {
+  fill: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------- picking a bar */
+
+.tagbars li {
+  transition: opacity 0.42s var(--ease-out), filter 0.42s var(--ease-out);
+}
+.tagbars.picking li:not(.on) {
+  opacity: 0.4;
+  filter: saturate(0.3);
+}
+.tagbars.picking li:not(.on):hover {
+  opacity: 0.75;
+}
+.pick-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 5px 5px 14px;
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--glass-ink);
+  font-size: 13px;
+  animation: chipin 0.42s var(--ease-out) both;
+}
+.pick-chip b {
+  color: var(--amber);
+  font-weight: 650;
+}
+.pick-chip button {
+  border: 0;
+  cursor: pointer;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 220, 180, 0.14);
+  color: var(--glass-ink);
+  font: inherit;
+  font-weight: 600;
+}
+.pick-chip button:hover {
+  background: rgba(255, 220, 180, 0.26);
+}
+.pick-chip kbd {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 220, 180, 0.1);
+  color: var(--glass-dim);
+  font: 11px 'Space Mono', ui-monospace, monospace;
+}
+@keyframes chipin {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+}
+button.band-filter {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.band-filter-x {
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .anchor {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding: 24px 20px 18px;
+  }
+  .mod-overview {
+    gap: 28px;
+  }
+}
+@media (max-width: 520px) {
+  .deck-b {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .carry {
+    flex-direction: column;
+    align-items: start;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .details-body::before {
+    animation: none;
+  }
+}

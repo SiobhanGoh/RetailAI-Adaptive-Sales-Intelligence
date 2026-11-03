@@ -14,7 +14,7 @@ import { weekday } from '../engine/values'
 // ------------------------------------------------------------------ status chips
 
 export function DisplayBand({ onPickSample }: { onPickSample: () => void }) {
-  const { ds, filters, sampleId } = useApp()
+  const { ds, filters, sampleId, pickDims } = useApp()
   const active = Object.values(filters.dims).reduce((a, v) => a + (v?.length ?? 0), 0)
   const sample = SAMPLES.find((s) => s.id === sampleId)
   return (
@@ -26,7 +26,11 @@ export function DisplayBand({ onPickSample }: { onPickSample: () => void }) {
         <span className="band-chev" aria-hidden />
       </button>
       <span className="band-cell">{ds?.capabilities.dates ? rangeLabel(filters.from, filters.to) : 'Undated rows'}</span>
-      {active > 0 && <span className="band-cell band-filter">{plural(active, 'filter')} on</span>}
+      {active > 0 && (
+        <button type="button" className="band-cell band-filter" onClick={() => pickDims({})} title="Clear the group filters; dates stay as they are">
+          {plural(active, 'filter')} on <span className="band-filter-x">Show all</span>
+        </button>
+      )}
     </div>
   )
 }

@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
 import { Details, Empty, Fig, Headline, Panel, Segmented } from '../ui/primitives'
 import { Heat, Pareto, TagBars } from '../charts/misc'
-import { breakdown, paretoCurve, rhythm, shareOfTop, shippingDays } from '../engine/aggregate'
+import { breakdown, filterRows, paretoCurve, rhythm, shareOfTop, shippingDays } from '../engine/aggregate'
 import { DIMENSION_LABEL, DIMENSION_PLURAL, type Dimension } from '../engine/types'
 import { downloadCsv, money, pct, shorten } from '../format'
 
@@ -13,11 +13,20 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'Ju
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export function Sales() {
-  const { ds, rows, currency, filters, setFilters } = useApp()
+  const { ds, rows, currency, filters, pickDims } = useApp()
   const dims = ds?.capabilities.dimensions ?? []
   const [dim, setDim] = useState<Dimension | 'product'>(dims.includes('subcategory') ? 'subcategory' : dims[0] ?? 'product')
   const active = dims.includes(dim as Dimension) || dim === 'product' ? dim : dims[0] ?? 'product'
-  const slices = useMemo(() => breakdown(rows, active), [rows, active])
+  // The bars for the grouping on screen ignore that grouping's own picks, so every row stays in
+  // place and the picked ones are lit, rather than the list collapsing to the one you picked.
+  const picked = active === 'product' ? [] : (filters.dims[active as Dimension] ?? [])
+  const pool = useMemo(() => {
+    if (!ds || !picked.length) return rows
+    const dims = { ...filters.dims }
+    delete dims[active as Dimension]
+    return filterRows(ds.rows, { ...filters, dims })
+  }, [ds, rows, filters, active, picked.length])
+  const slices = useMemo(() => breakdown(pool, active), [pool, active])
   const products = useMemo(() => (ds?.capabilities.products ? breakdown(rows, 'product') : []), [rows, ds])
   const names = useMemo(() => {
     const m = new Map<string, string>()
@@ -42,8 +51,28 @@ export function Sales() {
     if (active === 'product') return
     const d = active as Dimension
     const cur = filters.dims[d] ?? []
-    setFilters({ ...filters, dims: { ...filters.dims, [d]: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key] } })
+    const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]
+    const dims = { ...filters.dims }
+    if (next.length) dims[d] = next
+    else delete dims[d]
+    pickDims(dims)
   }
+  const showAll = () => {
+    const dims = { ...filters.dims }
+    delete dims[active as Dimension]
+    pickDims(dims)
+  }
+  useEffect(() => {
+    if (!picked.length) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('[role="dialog"]')) return
+      showAll()
+    }
+    addEventListener('keydown', onKey)
+    return () => removeEventListener('keydown', onKey)
+  })
+  const pickedSlices = shown.filter((s) => picked.includes(s.key))
+  const pickedShare = pickedSlices.reduce((a, s) => a + s.share, 0)
 
   usePrint(
     ds
@@ -76,14 +105,22 @@ export function Sales() {
   return (
     <div className="mod mod-sales">
       <header className="mod-head">
-        <Headline k={`${active}|${lead?.key}|${rows.length}`}>
-          {lead && (
+        <Headline k={`${active}|${lead?.key}|${rows.length}|${picked.join()}`}>
+          {pickedSlices.length === 1 ? (
+            <p className="hl-line">
+              <b className="fig fig-name">{shorten(pickedSlices[0].key, 40)}</b> brings <Fig value={pickedSlices[0].share} format={(v) => pct(v, 1)} /> of sales{shown.indexOf(pickedSlices[0]) === 0 ? `, the most of ${shown.length}` : `, number ${shown.indexOf(pickedSlices[0]) + 1} of ${shown.length}`}.
+            </p>
+          ) : pickedSlices.length > 1 ? (
+            <p className="hl-line">
+              The {pickedSlices.length} you picked bring <Fig value={pickedShare} format={(v) => pct(v, 1)} /> of sales.
+            </p>
+          ) : lead && (
             <p className="hl-line">
               <Fig value={lead.share} format={(v) => pct(v, 0)} /> of sales came from <b className="fig fig-name">{shorten(lead.key, 56)}</b>.
             </p>
           )}
           <p className="hl-line hl-sub">
-            {second ? `${second.key} is next with ${pct(second.share, 0)}. ` : ''}
+            {picked.length ? 'Every screen now shows only this. ' : second ? `${second.key} is next with ${pct(second.share, 0)}. ` : ''}
             {bestCell ? `Sales run highest on ${DAY_NAMES[bestCell.w]}s in ${MONTH_NAMES[bestCell.m]}.` : ''}
           </p>
         </Headline>
@@ -94,14 +131,25 @@ export function Sales() {
         title={shown.length > 12 ? `Top 12 of ${shown.length.toLocaleString('en')} ${unit}` : `All ${shown.length} ${unit}`}
         aside={
           <span className="row-actions">
-            {active !== 'product' && <span className="fine" style={{ margin: 0 }}>Select a bar to filter every screen</span>}
+            {active !== 'product' &&
+              (picked.length ? (
+                <span className="pick-chip" role="status">
+                  <span>
+                    <b>{picked.length === 1 ? shorten(picked[0], 28) : `${picked.length} ${unit}`}</b> only, {pct(pickedShare, 1)} of sales
+                  </span>
+                  <button type="button" onClick={showAll}>Show all</button>
+                  <kbd aria-label="or press Escape">Esc</kbd>
+                </span>
+              ) : (
+                <span className="fine" style={{ margin: 0 }}>Pick a bar to filter every screen</span>
+              ))}
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => downloadCsv(`sales-by-${active}`, shown.map((s) => ({ [active]: s.key, net_sales: s.net.toFixed(2), share: s.share.toFixed(4), orders: s.orders, ...(s.profit !== undefined ? { profit: s.profit.toFixed(2) } : {}) })))}>
               Download CSV
             </button>
           </span>
         }
       >
-        <TagBars items={shown} currency={currency} max={12} onPick={active === 'product' ? undefined : pickFilter} picked={active === 'product' ? [] : filters.dims[active as Dimension]} />
+        <TagBars items={shown} currency={currency} max={12} onPick={active === 'product' ? undefined : pickFilter} picked={picked} />
       </Panel>
 
       <Details label="Show when and how concentrated">
