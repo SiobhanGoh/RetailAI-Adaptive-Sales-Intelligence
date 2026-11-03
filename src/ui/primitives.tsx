@@ -232,6 +232,24 @@ function DockSheet({ title, icon, children, actions, openKey }: { title: string;
   const id = useRef(`sheet-${Math.random().toString(36).slice(2, 8)}`).current
 
   useEffect(() => setDock(document.getElementById('dock')), [])
+  // First visit in a session: show each dock title for a few seconds, so the icons explain themselves.
+  const [peek, setPeek] = useState(false)
+  useEffect(() => {
+    let seen = true
+    try {
+      seen = sessionStorage.getItem('retailai-dock-peek') === '1'
+      if (!seen) setTimeout(() => sessionStorage.setItem('retailai-dock-peek', '1'), 4500)
+    } catch {
+      seen = false
+    }
+    if (seen) return
+    const a = setTimeout(() => setPeek(true), 1200)
+    const b = setTimeout(() => setPeek(false), 5200)
+    return () => {
+      clearTimeout(a)
+      clearTimeout(b)
+    }
+  }, [])
 
   // Where the sheet should spring from: the centre of its dock icon, relative to the sheet's centre.
   const fromIcon = () => {
@@ -312,7 +330,7 @@ function DockSheet({ title, icon, children, actions, openKey }: { title: string;
   }, [openKey, mounted, id])
 
   const button = (
-    <button ref={btn} type="button" className={`dock-btn ${mounted ? 'on' : ''}`} aria-expanded={mounted} aria-controls={id} onClick={open}>
+    <button ref={btn} type="button" className={`dock-btn ${mounted ? 'on' : ''} ${peek ? 'peek' : ''}`} aria-expanded={mounted} aria-controls={id} onClick={open}>
       <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden>
         <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{ICONS[icon]}</g>
       </svg>

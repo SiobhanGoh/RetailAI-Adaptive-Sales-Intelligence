@@ -4,12 +4,15 @@ import { usePrint } from '../receipt'
 import { Details, Empty, Fig, Headline, Panel, Pill, Segmented } from '../ui/primitives'
 import { Scope } from '../charts/Scope'
 import { modelWeeks, weeklySeries } from '../engine/aggregate'
-import { MAX_H, MODEL_LABEL, MODEL_SHORT, availableModels, backtest, runForecast, type ModelId } from '../engine/forecast'
+import { MAX_H, MODEL_LABEL, availableModels, backtest, runForecast, type ModelId } from '../engine/forecast'
 import { DIMENSION_LABEL, type Dimension } from '../engine/types'
 import { downloadCsv, fmtDay, money, pct } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
 
 type Horizon = '4' | '8' | '12'
+
+// The receipt names the method in plain words; the details sheet keeps the technical names.
+const PLAIN_METHOD: Record<ModelId, string> = { seasonal: 'Same weeks last year', recent: 'Recent average', holtwinters: 'Trend and season', knn: 'Similar past weeks' }
 
 export function Forecast() {
   const { ds, rowsAllDates, filters, currency, sampleId } = useApp()
@@ -69,8 +72,8 @@ export function Forecast() {
           lines: [
             { label: baseLabel, value: money(base, currency, 'whole') },
             { label: `Last ${H} weeks`, value: money(lastActual, currency, 'whole') },
-            { label: 'Model used', value: MODEL_SHORT[result.chosen] },
-            { label: 'Typical miss', value: pct(chosenScore!.wape, 0) },
+            { label: 'Method', value: PLAIN_METHOD[result.chosen] },
+            { label: 'Usually within', value: `±${pct(chosenScore!.wape, 0)}` },
           ],
           notes: [
             `Tested by replaying ${result.origins} past weeks. Treat the range as a guide, not a promise.`,
@@ -136,7 +139,7 @@ export function Forecast() {
               <span className="legend-inline">
                 <i className="sw sw-line" /> Actual
                 <i className="sw sw-forecast" /> Forecast
-                <i className="sw sw-band" /> 80% band
+                <i className="sw sw-band" /> Likely range
                 {actualAfter.length > 0 && (
                   <>
                     <i className="sw sw-compare" /> What happened next
@@ -182,7 +185,7 @@ export function Forecast() {
                   <tr>
                     <th scope="col">Week ending</th>
                     <th scope="col" className="num">Forecast</th>
-                    <th scope="col" className="num">80% band</th>
+                    <th scope="col" className="num">Likely range (8 in 10)</th>
                     {actualAfter.length > 0 && <th scope="col" className="num">Actual</th>}
                   </tr>
                 </thead>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
 import { Delta, Details, Empty, Headline, MiniBars, Panel, Readout, Segmented, SplitBar, Ticket } from '../ui/primitives'
@@ -9,8 +9,39 @@ import { findAnomalies } from '../engine/anomalies'
 import { DIMENSION_LABEL, DIMENSION_PLURAL } from '../engine/types'
 import { count, fmtDay, money, pct, plural } from '../format'
 
-export function Overview() {
-  const { ds, rows, k, activeComp, compare, setCompare, currency, weeks, filters } = useApp()
+/** A one-time line for newcomers: what this is and that their own file is welcome. */
+function Welcome({ onOpen }: { onOpen: () => void }) {
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem('retailai-welcome') === '1'
+    } catch {
+      return false
+    }
+  })
+  if (hidden) return null
+  const done = () => {
+    setHidden(true)
+    try {
+      localStorage.setItem('retailai-welcome', '1')
+    } catch {
+      /* it just shows again next visit */
+    }
+  }
+  return (
+    <div className="welcome" role="note">
+      <p>
+        <b>You're looking at a sample store.</b> Look around, or open your own sales file (CSV or Excel). It's read in this browser tab and never uploaded.
+      </p>
+      <div className="welcome-actions">
+        <button type="button" className="btn btn-sticker btn-sm" onClick={() => (done(), onOpen())}>Open my own file</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={done}>Got it</button>
+      </div>
+    </div>
+  )
+}
+
+export function Overview({ onOpen }: { onOpen: () => void }) {
+  const { ds, rows, k, activeComp, compare, setCompare, currency, weeks, filters, source } = useApp()
   const dims = ds?.capabilities.dimensions ?? []
   const mixDim = dims.includes('category') ? 'category' : dims[0]
   const mix = useMemo(() => (mixDim ? breakdown(rows, mixDim) : []), [rows, mixDim])
@@ -54,16 +85,25 @@ export function Overview() {
     if (ds?.capabilities.customers) for (const r of ds.rows) if (r.customer && !(r.day >= (m.get(r.customer) ?? Infinity))) m.set(r.customer, r.day)
     return m
   }, [ds])
+  // New against returning needs history before the period. When the period starts with the
+  // file, everyone would count as new, so show who bought more than once instead.
   const custSplit = useMemo(() => {
     if (!ds?.capabilities.customers || !ds.capabilities.dates) return null
-    const seen = new Set<string>()
+    const history = filters.from > ds.minDay + 27
+    const orders = new Map<string, Set<string>>()
     let fresh = 0
     for (const r of rows) {
-      if (!r.customer || seen.has(r.customer)) continue
-      seen.add(r.customer)
-      if ((firstSeen.get(r.customer) ?? -Infinity) >= filters.from) fresh++
+      if (!r.customer) continue
+      let o = orders.get(r.customer)
+      if (!o) {
+        orders.set(r.customer, (o = new Set()))
+        if ((firstSeen.get(r.customer) ?? -Infinity) >= filters.from) fresh++
+      }
+      if (r.revenue >= 0) o.add(r.order)
     }
-    return { fresh, back: seen.size - fresh }
+    if (history) return { mode: 'new' as const, a: orders.size - fresh, b: fresh }
+    const repeat = [...orders.values()].filter((o) => o.size > 1).length
+    return { mode: 'repeat' as const, a: repeat, b: orders.size - repeat }
   }, [ds, rows, firstSeen, filters.from])
 
   // Which group moved the most against the comparison window.
@@ -88,7 +128,14 @@ export function Overview() {
   const notes: string[] = []
   if (mover && mover.delta !== 0) notes.push(`${mover.key} ${mover.delta > 0 ? 'grew' : 'fell'} the most: ${mover.delta > 0 ? '+' : '−'}${money(Math.abs(mover.delta), currency)} against the ${cl}.`)
   if (latestAnomaly) notes.push(`Unusual week ending ${fmtDay(latestAnomaly.end)}: ${money(latestAnomaly.net, currency)} against a usual ${money(latestAnomaly.baseline, currency)}${latestAnomaly.drivers[0] ? `, mostly ${latestAnomaly.drivers[0].key}` : ''}.`)
-  if (top20 !== undefined) notes.push(`The top 20% of products bring ${pct(top20, 0)} of sales, so their stock matters most.`)
+  if (top20 !== undefined)
+    notes.push(
+      top20 >= 0.6
+        ? `The top 20% of products bring ${pct(top20, 0)} of sales, so their stock matters most.`
+        : top20 <= 0.4
+          ? `Sales are spread evenly: the top 20% of products bring only ${pct(top20, 0)}, so no small group carries the store.`
+          : `The top 20% of products bring ${pct(top20, 0)} of sales.`,
+    )
   usePrint(
     k && ds
       ? {
@@ -109,7 +156,9 @@ export function Overview() {
   if (!rows.length) return <Empty title="No rows in this view">Widen the period on the strip at the bottom or clear some filters.</Empty>
 
   const hasDates = ds.capabilities.dates
-  const stub = (now: number, before: number | undefined, was: string | undefined) => (hasDates ? <Delta value={pctChange(now, before)} label={cl} was={was} /> : undefined)
+  const short = typeof window !== 'undefined' && window.innerHeight < 860 && window.innerWidth > 900
+  // Say 'nothing to compare with' once, in the anchor, not on every ticket.
+  const stub = (now: number, before: number | undefined, was: string | undefined) => (hasDates && c ? <Delta value={pctChange(now, before)} label={cl} was={was} /> : undefined)
   const showChart = hasDates && weeks.length > 1
   const avgMark = figs.cap ? (k.aov / figs.cap) * figs.spread.length : undefined
   const fourth =
@@ -137,6 +186,7 @@ export function Overview() {
 
   return (
     <div className="mod mod-overview">
+      {source?.bundled && <Welcome onOpen={onOpen} />}
       <header className="mod-head">
         <Headline k={`${k.net}|${filters.from}|${filters.to}|${compare}`}>
           <p className="hl-line">
@@ -197,7 +247,7 @@ export function Overview() {
               compare={compareSeries}
               markers={[...anomalies].sort((x, y) => Math.abs(y.z) - Math.abs(x.z)).slice(0, 3).map((a) => ({ end: a.end, kind: a.direction, label: `${a.direction === 'spike' ? 'Spike' : 'Dip'}: ${money(a.net, currency)} vs usual ${money(a.baseline, currency)}` }))}
               currency={currency}
-              height={230}
+              height={short ? 168 : 230}
               label="Weekly net sales line chart"
             />
           </div>
@@ -229,9 +279,17 @@ export function Overview() {
             <Readout value={k.customers} kind="count" size="md" label={`${k.customers} customers`} />
             {custSplit && (
               <>
-                <SplitBar parts={[{ value: custSplit.back, tone: 'a' }, { value: custSplit.fresh, tone: 'b' }]} label={`${custSplit.back} returning and ${custSplit.fresh} new customers`} />
+                <SplitBar parts={[{ value: custSplit.a, tone: 'a' }, { value: custSplit.b, tone: 'b' }]} label={custSplit.mode === 'new' ? `${custSplit.a} returning and ${custSplit.b} new customers` : `${custSplit.a} bought more than once, ${custSplit.b} once`} />
                 <span className="ticket-cap">
-                  <b>{count(custSplit.back)}</b> came back, <b>{count(custSplit.fresh)}</b> new
+                  {custSplit.mode === 'new' ? (
+                    <>
+                      <b>{count(custSplit.a)}</b> came back, <b>{count(custSplit.b)}</b> new
+                    </>
+                  ) : (
+                    <>
+                      <b>{count(custSplit.a)}</b> bought more than once, <b>{count(custSplit.b)}</b> once
+                    </>
+                  )}
                 </span>
               </>
             )}

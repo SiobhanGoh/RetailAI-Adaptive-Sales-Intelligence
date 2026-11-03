@@ -118,10 +118,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const adopt = useCallback((next: Dataset) => {
     setDs(next)
-    // Open on the latest 52 weeks when there is at least two years of data, so every
-    // figure has a comparison from the first glance. Shorter files open on everything.
-    const long = Number.isFinite(next.minDay) && next.maxDay - next.minDay >= 2 * 364
-    setFiltersRaw({ from: long ? next.maxDay - 363 : next.minDay, to: next.maxDay, dims: {} })
+    // Open on a window that has an earlier window to compare with, so figures have a
+    // comparison from the first glance: the latest 52 weeks with two years of data, the latest
+    // 13 weeks with half a year, and everything for shorter files.
+    const span = Number.isFinite(next.minDay) ? next.maxDay - next.minDay : 0
+    const from = span >= 2 * 364 ? next.maxDay - 363 : span >= 182 ? next.maxDay - 90 : next.minDay
+    setFiltersRaw({ from, to: next.maxDay, dims: {} })
     setPrintSeq((s) => s + 1)
   }, [])
 

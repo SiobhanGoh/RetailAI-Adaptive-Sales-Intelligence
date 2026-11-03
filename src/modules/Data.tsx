@@ -133,8 +133,8 @@ export function Data({ onOpen }: { onOpen: () => void }) {
                 <li key={q.text} className={`check-${q.level}`}>
                   <span className="check-mark" aria-hidden>{q.level === 'info' ? '✓' : '!'}</span>
                   <span>
+                    {q.count ? <b className="check-count">{plural(q.count, 'row')}</b> : null}
                     {q.text}
-                    {q.count ? <b> {q.count.toLocaleString('en')}</b> : null}
                   </span>
                 </li>
               ))

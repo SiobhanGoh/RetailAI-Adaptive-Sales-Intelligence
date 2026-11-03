@@ -120,6 +120,60 @@ export function FilterChips({ onOpen }: { onOpen: () => void }) {
   )
 }
 
+function ShortcutsButton() {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const toggle = () => setOpen((v) => !v)
+    addEventListener('retailai-keys', toggle)
+    return () => removeEventListener('retailai-keys', toggle)
+  }, [])
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    const onAway = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
+    addEventListener('keydown', onKey)
+    addEventListener('pointerdown', onAway)
+    return () => {
+      removeEventListener('keydown', onKey)
+      removeEventListener('pointerdown', onAway)
+    }
+  }, [open])
+  const rows: [string, string][] = [
+    ['1 to 6', 'Switch screen'],
+    ['F', 'Filter the data'],
+    ['U', 'Open a file'],
+    ['P', 'Report'],
+    ['Esc', 'Close a panel or undo a pick'],
+    ['?', 'Show these shortcuts'],
+  ]
+  return (
+    <div className="keys-wrap" ref={box}>
+      <button type="button" className="btn btn-metal btn-icon" aria-expanded={open} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={() => setOpen((v) => !v)}>
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
+          <rect x="2" y="5" width="16" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M5 8h1m2.5 0h1m2.5 0h1m2.5 0h-.01M5 11h1m3 0h4m3 0h-.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      </button>
+      {open && (
+        <div className="keys-pop" role="dialog" aria-label="Keyboard shortcuts">
+          <p className="keys-title">Keyboard shortcuts</p>
+          <dl>
+            {rows.map(([k, v]) => (
+              <div key={k}>
+                <dt>
+                  <kbd>{k}</kbd>
+                </dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function Utilities({ onUpload }: { onUpload: () => void }) {
   const { setReport, report, theme, setTheme } = useApp()
   return (
@@ -141,6 +195,7 @@ export function Utilities({ onUpload }: { onUpload: () => void }) {
           {theme === 'light' ? <path d="M13.5 3.5a7 7 0 1 0 3 9.6A6 6 0 0 1 13.5 3.5Z" fill="currentColor" /> : <circle cx="10" cy="10" r="4.5" fill="currentColor" />}
         </svg>
       </button>
+      <ShortcutsButton />
     </div>
   )
 }
@@ -156,6 +211,7 @@ export function useShortcuts(handlers: { filters: () => void; upload: () => void
       if (e.key === 'f' || e.key === 'F') handlers.filters()
       if (e.key === 'u' || e.key === 'U') handlers.upload()
       if (e.key === 'p' || e.key === 'P') setReport(!report)
+      if (e.key === '?') dispatchEvent(new CustomEvent('retailai-keys'))
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -239,6 +295,13 @@ export function TuningBand() {
   const start = useRef({ x: 0, from: 0, to: 0 })
   const [draft, setDraft] = useState<{ from: number; to: number } | null>(null)
   const [custom, setCustom] = useState(false)
+  // A click on the timeline moves the dates, which is easy to do by accident, so it offers Undo.
+  const [undo, setUndo] = useState<{ from: number; to: number; label: string } | null>(null)
+  useEffect(() => {
+    if (!undo) return
+    const t = setTimeout(() => setUndo(null), 7000)
+    return () => clearTimeout(t)
+  }, [undo])
   const width = Math.max(w, 200)
   const H = 64
   const min = ds?.minDay ?? 0
@@ -300,6 +363,7 @@ export function TuningBand() {
     const len = filters.to - filters.from
     let from = d - len / 2
     from = Math.max(min, Math.min(max - len, from))
+    setUndo({ from: filters.from, to: filters.to, label: rangeLabel(Math.round(from), Math.round(from + len)) })
     commit(from, from + len)
   }
   const onKey = (which: 'from' | 'to') => (e: React.KeyboardEvent) => {
@@ -383,8 +447,22 @@ export function TuningBand() {
             <span className="tuning-cap">{draft ? fmtDay(Math.round(cur[which])) : fmtMonth(Math.round(cur[which]))}</span>
           </div>
         ))}
-        <span className="tuning-hint" aria-hidden>Drag the edges or the window</span>
       </div>
+      <span className="tuning-hint" aria-hidden>Drag an edge or the lit window to change the dates</span>
+      {undo && (
+        <div className="tuning-undo" role="status">
+          <span>Moved to {undo.label}.</span>
+          <button
+            type="button"
+            onClick={() => {
+              commit(undo.from, undo.to)
+              setUndo(null)
+            }}
+          >
+            Undo
+          </button>
+        </div>
+      )}
       {custom && <CustomPeriod min={min} max={max} from={filters.from} to={filters.to} years={years} onApply={(f, t) => { commit(f, t); setCustom(false) }} onClose={() => setCustom(false)} />}
     </div>
   )

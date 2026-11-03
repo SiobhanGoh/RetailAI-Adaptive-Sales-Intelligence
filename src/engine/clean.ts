@@ -137,7 +137,7 @@ export function buildDataset(
       level: 'info',
       text: options.dropExactDuplicates
         ? 'Exact duplicate rows were removed at your request.'
-        : 'Exact duplicate rows were found and kept, since identical line items can be real. You can remove them on the Data screen.',
+        : 'Exact duplicate rows were found and kept, since identical line items can be real. You can remove them in the column matching.',
       count: duplicates,
     })
   }

@@ -32,6 +32,34 @@ function Logo() {
 function Screen({ onOpen }: { onOpen: () => void }) {
   const { module, report, loading, error, setError, ds } = useApp()
   const screen = useRef<HTMLDivElement>(null)
+  const [more, setMore] = useState(false)
+  const first = useRef(true)
+  // Every screen opens at its top, not wherever the last one was scrolled to.
+  useLayoutEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
+    screen.current?.scrollTo({ top: 0 })
+    if (window.scrollY > 0 && window.matchMedia('(max-width: 900px)').matches) window.scrollTo({ top: 0 })
+  }, [module, report])
+  // A small 'More below' cue while part of the screen is out of sight.
+  useEffect(() => {
+    const el = screen.current
+    if (!el) return
+    const check = () => setMore(el.scrollHeight - el.clientHeight - el.scrollTop > 40 && el.clientHeight < el.scrollHeight)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    if (el.firstElementChild) ro.observe(el.firstElementChild)
+    el.addEventListener('scroll', check, { passive: true })
+    const t = setTimeout(check, 900)
+    return () => {
+      ro.disconnect()
+      el.removeEventListener('scroll', check)
+      clearTimeout(t)
+    }
+  }, [module, report, ds])
   useLayoutEffect(() => {
     if (reducedMotion() || !screen.current) return
     gsap.fromTo(screen.current.querySelectorAll('.mod > *, .report > *'), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, stagger: 0.06, ease: 'power3.out', clearProps: 'transform,opacity' })
@@ -42,7 +70,7 @@ function Screen({ onOpen }: { onOpen: () => void }) {
     if (report) return <Report />
     switch (module) {
       case 'overview':
-        return <Overview />
+        return <Overview onOpen={onOpen} />
       case 'sales':
         return <Sales />
       case 'forecast':
@@ -73,6 +101,14 @@ function Screen({ onOpen }: { onOpen: () => void }) {
         )}
         {body}
       </div>
+      {more && (
+        <button type="button" className="more-below" onClick={() => screen.current?.scrollBy({ top: screen.current.clientHeight * 0.75, behavior: reducedMotion() ? 'auto' : 'smooth' })}>
+          More below
+          <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden>
+            <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
     </main>
   )
 }
