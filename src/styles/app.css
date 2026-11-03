@@ -4206,3 +4206,28 @@ button.who-row.on::after {
     padding: 4px 14px 20px;
   }
 }
+
+/* Dock icons in solid amber so they stand out on the aluminium in both finishes. */
+.dock-btn {
+  background: linear-gradient(180deg, #ffbd73, var(--amber-hot));
+  color: var(--amber-ink);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 0 0 1px rgba(120, 50, 0, 0.25), 0 8px 18px rgba(200, 90, 20, 0.35);
+}
+.dock-btn:hover,
+.dock-btn:focus-visible {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 0 0 1px rgba(120, 50, 0, 0.3), 0 0 22px rgba(255, 140, 60, 0.55), 0 10px 22px rgba(200, 90, 20, 0.4);
+}
+.dock-btn:focus-visible {
+  outline: 2px solid var(--chassis-ink);
+  outline-offset: 3px;
+}
+.dock-btn.on {
+  background: var(--glass);
+  color: var(--amber);
+  box-shadow: 0 0 0 1.5px var(--amber-hot), 0 0 18px rgba(255, 140, 60, 0.45), 0 8px 20px var(--lg-drop);
+}
+:root[data-theme='dark'] .dock-btn:not(.on) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 16px rgba(255, 140, 60, 0.35), 0 8px 18px rgba(0, 0, 0, 0.45);
+}
