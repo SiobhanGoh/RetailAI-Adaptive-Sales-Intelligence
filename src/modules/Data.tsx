@@ -97,7 +97,7 @@ export function Data({ onOpen }: { onOpen: () => void }) {
         </Panel>
 
 
-      <Details label="Show and fix the column matching" defaultOpen={!source?.bundled}>
+      <Details label="Show and fix the column matching" title="Column matching" icon="columns" inline={!source?.bundled} defaultOpen={!source?.bundled}>
         <div className="data-layout">
         <Panel title="What each column means" className="panel-map">
           <p className="quiet">Columns are matched by whole words and then checked against their values. Change any match and apply.</p>
@@ -189,7 +189,7 @@ export function Data({ onOpen }: { onOpen: () => void }) {
         </div>
       </Details>
 
-      <Details label="Show the cleaned rows and how numbers are made">
+      <Details title="Cleaned rows and how numbers are made" icon="rows">
         <Panel title="First rows after cleaning" className="panel-preview">
           <div className="scroll-x">
             <table className="table table-compact">

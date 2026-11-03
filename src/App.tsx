@@ -125,6 +125,7 @@ function Console() {
         <Screen onOpen={pick} />
         <ReceiptPrinter />
       </div>
+      <nav className="dock" id="dock" aria-label="More on this screen" />
       <footer className="controls">
         <TuningBand />
       </footer>

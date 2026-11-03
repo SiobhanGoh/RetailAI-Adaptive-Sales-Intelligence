@@ -148,7 +148,7 @@ export function Forecast() {
             <Scope points={shownHistory} forecast={result.forecast} compare={actualAfter.length ? [shownHistory[shownHistory.length - 1], ...actualAfter] : undefined} currency={currency} height={300} label={`Weekly sales with a ${H}-week forecast`} />
           </Panel>
 
-          <Details label="Show how the forecast was made">
+          <Details title="How the forecast was made" icon="flask">
           <div className="split split-fc">
             <Panel title="Model replay" className="panel-board">
               <ol className="board" aria-label="Models ranked by backtest error">

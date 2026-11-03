@@ -153,7 +153,7 @@ export function Products() {
         </Panel>
       </div>
 
-      <Details label="Show what sells together">
+      <Details title="What sells together" icon="link">
         <Panel title="What sells together" className="panel-together">
           {affinity.length > 0 ? (
             <div className="together">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { gsap } from 'gsap'
+import { createPortal } from 'react-dom'
 import { readoutParts, signedPct, type Currency } from '../format'
 
 export const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -193,7 +194,153 @@ export function Fig({ value, format, tone }: { value: number; format: (v: number
 }
 
 /** "Show details" drawer with a smooth height animation. */
-export function Details({ label = 'Show details', children, defaultOpen = false }: { label?: string; children: ReactNode; defaultOpen?: boolean }) {
+export type DockIcon = 'pie' | 'calendar' | 'flask' | 'link' | 'users' | 'columns' | 'rows'
+
+const ICONS: Record<DockIcon, ReactNode> = {
+  pie: <path d="M10 3a7 7 0 1 0 7 7h-7z M12 1.5V8h6.5A6.5 6.5 0 0 0 12 1.5z" />,
+  calendar: <path d="M4 5h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm-1 4h14M7 3v4m6-4v4M6.5 12h2m3 0h2m-7 2.5h2" />,
+  flask: <path d="M8 2.5h4M8.5 2.5v5L4 15.5a1.2 1.2 0 0 0 1 1.8h10a1.2 1.2 0 0 0 1-1.8l-4.5-8v-5M6 12h8" />,
+  link: <path d="M8.5 11.5a3 3 0 0 0 4.2 0l2.8-2.8a3 3 0 0 0-4.2-4.2l-1 1M11.5 8.5a3 3 0 0 0-4.2 0l-2.8 2.8a3 3 0 0 0 4.2 4.2l1-1" />,
+  users: <path d="M7.5 9.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2.5 17a5 5 0 0 1 10 0M13 3.8a3 3 0 0 1 0 5.6M14.5 12.3A5 5 0 0 1 17.5 17" />,
+  columns: <path d="M3 4h14v12H3zM7.7 4v12m4.6-12v12" />,
+  rows: <path d="M3 4h14v12H3zM3 8h14M3 12h14" />,
+}
+
+/** Extra views for a screen. They live as icons on a floating dock at the side of the screen;
+ *  pointing at one slides its title out, and clicking springs a liquid-glass sheet out of the icon.
+ *  `inline` keeps the old in-page drawer, for content that has to be seen straight away. */
+export function Details({ label = 'Show details', title, icon = 'pie', children, defaultOpen = false, inline = false }: { label?: string; title?: string; icon?: DockIcon; children: ReactNode; defaultOpen?: boolean; inline?: boolean }) {
+  if (inline) return <InlineDetails label={label} defaultOpen={defaultOpen}>{children}</InlineDetails>
+  return <DockSheet title={title ?? label.replace(/^Show (the )?/, '').replace(/^./, (c) => c.toUpperCase())} icon={icon}>{children}</DockSheet>
+}
+
+const glint = (e: React.PointerEvent<HTMLDivElement>) => {
+  const card = (e.target as HTMLElement).closest<HTMLElement>('.panel')
+  if (!card) return
+  const r = card.getBoundingClientRect()
+  card.style.setProperty('--mx', `${e.clientX - r.left}px`)
+  card.style.setProperty('--my', `${e.clientY - r.top}px`)
+}
+
+function DockSheet({ title, icon, children }: { title: string; icon: DockIcon; children: ReactNode }) {
+  const [dock, setDock] = useState<HTMLElement | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const btn = useRef<HTMLButtonElement>(null)
+  const sheet = useRef<HTMLDivElement>(null)
+  const backdrop = useRef<HTMLDivElement>(null)
+  const tween = useRef<gsap.core.Timeline | null>(null)
+  const id = useRef(`sheet-${Math.random().toString(36).slice(2, 8)}`).current
+
+  useEffect(() => setDock(document.getElementById('dock')), [])
+
+  // Where the sheet should spring from: the centre of its dock icon, relative to the sheet's centre.
+  const fromIcon = () => {
+    const a = btn.current?.getBoundingClientRect()
+    const b = sheet.current?.getBoundingClientRect()
+    if (!a || !b) return { x: 0, y: 0 }
+    return { x: a.left + a.width / 2 - (b.left + b.width / 2), y: a.top + a.height / 2 - (b.top + b.height / 2) }
+  }
+
+  const close = useCallback(() => {
+    const el = sheet.current
+    if (!el || reducedMotion()) {
+      setMounted(false)
+      btn.current?.focus()
+      return
+    }
+    tween.current?.kill()
+    const o = fromIcon()
+    tween.current = gsap
+      .timeline({
+        onComplete: () => {
+          setMounted(false)
+          btn.current?.focus()
+        },
+      })
+      .to(el, { x: o.x, y: o.y, scale: 0.15, opacity: 0, filter: 'blur(6px)', duration: 0.32, ease: 'power3.in' })
+      .to(backdrop.current, { opacity: 0, duration: 0.25 }, 0)
+  }, [])
+
+  useLayoutEffect(() => {
+    const el = sheet.current
+    if (!mounted || !el) return
+    ;(el.querySelector('.gsheet-close') as HTMLElement | null)?.focus()
+    if (reducedMotion()) return
+    const o = fromIcon()
+    tween.current?.kill()
+    tween.current = gsap
+      .timeline()
+      .fromTo(backdrop.current, { opacity: 0 }, { opacity: 1, duration: 0.3 })
+      .fromTo(el, { x: o.x, y: o.y, scale: 0.15, opacity: 0, filter: 'blur(8px)' }, { x: 0, y: 0, scale: 1, opacity: 1, filter: 'blur(0px)', duration: 0.62, ease: 'back.out(1.35)', clearProps: 'filter' }, 0)
+      .fromTo(el.querySelectorAll('.gsheet-body .panel'), { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, stagger: 0.06, ease: 'power3.out', clearProps: 'transform,opacity' }, 0.22)
+  }, [mounted])
+
+  // One sheet at a time, and Esc closes it.
+  useEffect(() => {
+    if (!mounted) return
+    const onOther = (e: Event) => (e as CustomEvent).detail !== id && close()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        close()
+      }
+    }
+    addEventListener('retailai-sheet', onOther)
+    addEventListener('keydown', onKey)
+    return () => {
+      removeEventListener('retailai-sheet', onOther)
+      removeEventListener('keydown', onKey)
+    }
+  }, [mounted, close, id])
+
+  const open = () => {
+    if (mounted) return close()
+    dispatchEvent(new CustomEvent('retailai-sheet', { detail: id }))
+    setMounted(true)
+  }
+
+  const button = (
+    <button ref={btn} type="button" className={`dock-btn ${mounted ? 'on' : ''}`} aria-expanded={mounted} aria-controls={id} onClick={open}>
+      <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden>
+        <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{ICONS[icon]}</g>
+      </svg>
+      <span className="dock-label">{title}</span>
+    </button>
+  )
+
+  return (
+    <>
+      {dock ? createPortal(button, dock) : null}
+      {mounted &&
+        createPortal(
+          <>
+            <div className="gsheet-backdrop" ref={backdrop} onClick={close} aria-hidden />
+            <div className="gsheet" id={id} ref={sheet} role="dialog" aria-modal="true" aria-label={title}>
+              <header className="gsheet-head">
+                <span className="gsheet-icon" aria-hidden>
+                  <svg viewBox="0 0 20 20" width="18" height="18">
+                    <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{ICONS[icon]}</g>
+                  </svg>
+                </span>
+                <h2>{title}</h2>
+                <button type="button" className="gsheet-close" onClick={close} aria-label={`Close ${title}`}>
+                  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
+                    <path d="M3 3l10 10M13 3 3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </header>
+              <div className="gsheet-body details-body" onPointerMove={glint}>
+                {children}
+              </div>
+            </div>
+          </>,
+          document.body,
+        )}
+    </>
+  )
+}
+
+function InlineDetails({ label, children, defaultOpen }: { label: string; children: ReactNode; defaultOpen: boolean }) {
   // `mounted` keeps the body in the page while it closes, so it can animate out as well as in.
   const [open, setOpen] = useState(defaultOpen)
   const [mounted, setMounted] = useState(defaultOpen)
@@ -228,15 +375,6 @@ export function Details({ label = 'Show details', children, defaultOpen = false 
       .timeline({ onComplete: () => setMounted(false) })
       .to(el.querySelectorAll(':scope > * > .panel, :scope > .panel'), { y: 10, opacity: 0, scale: 0.98, duration: 0.22, stagger: 0.03, ease: 'power2.in' })
       .to(el, { height: 0, opacity: 0, overflow: 'hidden', duration: 0.38, ease: 'power3.inOut' }, 0.08)
-  }
-
-  // A soft highlight follows the pointer across the glass cards.
-  const glint = (e: React.PointerEvent<HTMLDivElement>) => {
-    const card = (e.target as HTMLElement).closest<HTMLElement>('.panel')
-    if (!card) return
-    const r = card.getBoundingClientRect()
-    card.style.setProperty('--mx', `${e.clientX - r.left}px`)
-    card.style.setProperty('--my', `${e.clientY - r.top}px`)
   }
 
   return (

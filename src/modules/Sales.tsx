@@ -152,7 +152,7 @@ export function Sales() {
         <TagBars items={shown} currency={currency} max={20} onPick={active === 'product' ? undefined : pickFilter} picked={picked} />
       </Panel>
 
-      <Details label="Show when and how concentrated">
+      <Details title="When and how concentrated" icon="calendar">
         <div className="sales-layout">
           {grid && (
             <Panel glass title="Average daily sales by weekday and month" className="panel-rhythm">

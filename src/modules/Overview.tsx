@@ -240,7 +240,7 @@ export function Overview() {
         {fourth}
       </div>
 
-      <Details>
+      <Details title="Shares and unusual weeks" icon="pie">
         <div className="split split-glass">
           {mix.length > 1 && (
             <Panel glass title={`Share by ${DIMENSION_LABEL[mixDim!].toLowerCase()}`}>

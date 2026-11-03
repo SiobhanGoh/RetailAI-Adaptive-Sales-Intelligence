@@ -162,7 +162,7 @@ export function Customers() {
         </div>
       </section>
 
-      <Details label="Show the recency grid and retention">
+      <Details title="Recency and retention" icon="users">
         <div className="cust-layout">
         <Panel glass title="Who is still buying" className="panel-rf">
           <div className="rf">
