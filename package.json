@@ -15,7 +15,9 @@
     "test": "vitest run",
     "evaluate": "tsx scripts/evaluate.ts",
     "typecheck": "tsc -b",
-    "screenshots": "node scripts/screenshots.mjs http://localhost:4173/ assets/screens"
+    "screenshots": "node scripts/screenshots.mjs http://localhost:4173/ assets/screens",
+    "generate:malaysia": "tsx scripts/generate-malaysia-store.ts",
+    "check:samples": "node scripts/check-samples.mjs http://localhost:4173/ sample-shots"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",

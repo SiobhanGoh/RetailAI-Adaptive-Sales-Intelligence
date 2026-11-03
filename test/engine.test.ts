@@ -201,3 +201,33 @@ describe('a messy upload (synthetic gift-shop fixture)', () => {
     expect(ds.quality.some((q) => q.text.includes('duplicate') && q.count === 1)).toBe(true)
   })
 })
+
+describe('bundled samples', () => {
+  const load = (file: string) => {
+    const t = parseCsvText(readFileSync(`data/${file}`, 'utf8'))
+    return buildDataset(file, t.records, t.columns)
+  }
+
+  it('reads the trimmed Online Retail II file with returns, units and real baskets', () => {
+    const ds = load('online_retail_ii_sample.csv')
+    expect(ds.mapping).toMatchObject({ orderId: 'Invoice', orderDate: 'InvoiceDate', productId: 'StockCode', unitPrice: 'Price', quantity: 'Quantity', customerId: 'Customer ID' })
+    expect(ds.rows.length).toBe(158114)
+    const k = kpis(ds.rows)
+    expect(k.customers).toBe(1695)
+    expect(k.returns).toBeLessThan(0)
+    expect(k.units).toBeGreaterThan(0)
+    expect(dayToISO(ds.minDay)).toBe('2010-12-01')
+    expect(dayToISO(ds.maxDay)).toBe('2011-12-09')
+  })
+
+  it('reads the synthetic Malaysian store with every column role filled', () => {
+    const ds = load('kedai_amber_synthetic.csv')
+    for (const role of ['orderId', 'orderDate', 'productId', 'productName', 'customerId', 'category', 'subcategory', 'region', 'segment', 'state', 'city', 'quantity', 'unitPrice', 'revenue', 'profit', 'discount'] as const) {
+      expect(ds.mapping[role], role).toBeDefined()
+    }
+    const k = kpis(ds.rows)
+    expect(k.margin).toBeGreaterThan(0.1)
+    expect(k.returns).toBeLessThan(0)
+    expect(ds.capabilities.dimensions).toEqual(['category', 'subcategory', 'region', 'segment', 'state', 'city'])
+  })
+})

@@ -49,9 +49,11 @@ export function kpis(rows: Row[]): Kpis {
   const orders = new Set<string>()
   const customers = new Set<string>()
   for (const r of rows) {
-    if (r.revenue >= 0) gross += r.revenue
-    else returns += r.revenue
-    orders.add(r.order)
+    // Return-only invoices are not new orders, so only sales rows count towards orders.
+    if (r.revenue >= 0) {
+      gross += r.revenue
+      orders.add(r.order)
+    } else returns += r.revenue
     if (r.customer) customers.add(r.customer)
     if (r.qty !== undefined) {
       units += r.qty

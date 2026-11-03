@@ -109,11 +109,12 @@ const SCORERS: Record<Role, Scorer> = {
     if (has(t, ID)) return 0
     if (t.includes('region')) return 3
     if (t.length === 1 && has(t, ['zone', 'area', 'territory'])) return 2
+    if (t.length === 1 && t[0] === 'country') return 1
     return 0
   },
-  segment: (t) => (t.includes('segment') && !has(t, ID) ? 3 : 0),
+  segment: (t) => (has(t, ID) ? 0 : t.includes('segment') ? 3 : has(t, ['channel', 'format']) ? 2 : 0),
   state: (t) => (has(t, ['state', 'province']) && !has(t, ID) && !t.includes('postal') ? 3 : 0),
-  city: (t) => (has(t, ['city', 'town']) && !has(t, ID) ? 3 : 0),
+  city: (t) => (has(t, ID) ? 0 : has(t, ['city', 'town']) ? 3 : t.includes('district') ? 2 : 0),
   profit: (t) => (t.includes('profit') && !has(t, ['pct', 'percent', 'ratio', 'rate', 'margin']) ? 3 : 0),
   discount: (t) => (t.includes('discount') ? 3 : 0),
   cost: (t) => (has(t, ['cost', 'cogs']) && !has(t, ['shipping', 'freight']) ? 3 : 0),

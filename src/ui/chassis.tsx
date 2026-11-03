@@ -3,6 +3,7 @@ import { gsap } from 'gsap'
 import { scaleLinear } from 'd3-scale'
 import { area, curveMonotoneX } from 'd3-shape'
 import { MODULES, useApp, type ModuleId } from '../state'
+import { KIND_LABEL, SAMPLES } from '../samples'
 import { useReceiptContent } from '../receipt'
 import { Barcode, reducedMotion, useSize } from './primitives'
 import { DIMENSIONS, DIMENSION_LABEL, type Dimension } from '../engine/types'
@@ -12,21 +13,20 @@ import { weekday } from '../engine/values'
 
 // ------------------------------------------------------------------ status chips
 
-export function DisplayBand() {
-  const { ds, filters, rows } = useApp()
+export function DisplayBand({ onPickSample }: { onPickSample: () => void }) {
+  const { ds, filters, sampleId } = useApp()
   const active = Object.values(filters.dims).reduce((a, v) => a + (v?.length ?? 0), 0)
+  const sample = SAMPLES.find((s) => s.id === sampleId)
   return (
     <div className="band" role="status" aria-live="polite">
-      <span className="band-cell band-store" title={ds?.name}>
+      <button type="button" className="band-cell band-store" title="Switch to another sample store" onClick={onPickSample}>
         <i className="lamp" aria-hidden />
-        {ds ? ds.name : 'No data loaded'}
-      </span>
+        <span className="band-store-name">{ds ? ds.name : 'No data loaded'}</span>
+        {sample && <span className={`kind kind-${sample.kind}`}>{KIND_LABEL[sample.kind]}</span>}
+        <span className="band-chev" aria-hidden />
+      </button>
       <span className="band-cell">{ds?.capabilities.dates ? rangeLabel(filters.from, filters.to) : 'Undated rows'}</span>
-      <span className="band-cell">
-        <i className={`lamp ${active ? 'lamp-on' : ''}`} aria-hidden />
-        {active ? `${plural(active, 'filter')} on` : 'All segments'}
-      </span>
-      <span className="band-cell band-count">{plural(rows.length, 'line')}</span>
+      {active > 0 && <span className="band-cell band-filter">{plural(active, 'filter')} on</span>}
     </div>
   )
 }
@@ -35,7 +35,7 @@ export function DisplayBand() {
 
 const press = (el: HTMLElement) => {
   if (reducedMotion()) return
-  gsap.fromTo(el, { rotate: -3, y: 4 }, { rotate: 0, y: 0, duration: 0.6, ease: 'elastic.out(1, 0.45)' })
+  gsap.fromTo(el, { rotate: -3, y: 4 }, { rotate: 0, y: 0, duration: 0.6, ease: 'elastic.out(1, 0.45)', clearProps: 'transform' })
 }
 
 export function TicketRail() {
@@ -57,7 +57,6 @@ export function TicketRail() {
             >
               <span className="order-clip" aria-hidden />
               <span className="order-label">{m.label}</span>
-              <span className="order-hint">{m.hint}</span>
             </button>
           )
         })}
@@ -84,12 +83,12 @@ export function Utilities({ onFilters, onUpload }: { onFilters: () => void; onUp
       <button
         type="button"
         className="btn btn-metal btn-icon"
-        onClick={() => setTheme(theme === 'console' ? 'showroom' : 'console')}
-        aria-label={theme === 'console' ? 'Switch to the graphite finish' : 'Switch to the aluminium finish'}
-        title={theme === 'console' ? 'Graphite finish' : 'Aluminium finish'}
+        onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+        aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+        title={theme === 'light' ? 'Dark mode' : 'Light mode'}
       >
         <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
-          {theme === 'console' ? <path d="M13.5 3.5a7 7 0 1 0 3 9.6A6 6 0 0 1 13.5 3.5Z" fill="currentColor" /> : <circle cx="10" cy="10" r="4.5" fill="currentColor" />}
+          {theme === 'light' ? <path d="M13.5 3.5a7 7 0 1 0 3 9.6A6 6 0 0 1 13.5 3.5Z" fill="currentColor" /> : <circle cx="10" cy="10" r="4.5" fill="currentColor" />}
         </svg>
       </button>
     </div>
@@ -117,7 +116,7 @@ export function useShortcuts(handlers: { filters: () => void; upload: () => void
 
 export function ReceiptPrinter() {
   const content = useReceiptContent()
-  const { printSeq, ds, rows } = useApp()
+  const { printSeq } = useApp()
   const paper = useRef<HTMLDivElement>(null)
   const [printing, setPrinting] = useState(false)
   const key = content ? `${content.title}|${content.lines.map((l) => l.value).join('|')}|${printSeq}` : ''
@@ -149,13 +148,7 @@ export function ReceiptPrinter() {
             <>
               <p className="paper-store">RetailAI</p>
               <p className="paper-title">{content.title}</p>
-              <p className="paper-meta">
-                {ds?.name}
-                <br />
-                {plural(rows.length, 'line')}
-                <br />
-                Printed at {stamp}
-              </p>
+              <p className="paper-meta">Printed {stamp}</p>
               <dl className="paper-lines">
                 {content.lines.map((l) => (
                   <div key={l.label} className={l.tone ? `tone-${l.tone}` : ''}>
@@ -171,7 +164,7 @@ export function ReceiptPrinter() {
                   ))}
                 </ul>
               )}
-              <p className="paper-foot">Calculated from your rows with fixed rules. No text here is AI-written.</p>
+              <p className="paper-foot">Worked out from your rows</p>
               <Barcode seed={key} />
             </>
           ) : (
@@ -265,8 +258,8 @@ export function TuningBand() {
   return (
     <div className="tuning">
       <div className="tuning-presets" role="group" aria-label="Quick periods">
-        {presets.map((p) => (
-          <button key={p.label} type="button" className={p.from === filters.from && p.to === filters.to ? 'on' : ''} onClick={() => commit(p.from, p.to)}>
+        {presets.map((p, i) => (
+          <button key={p.label} type="button" className={i === presets.findIndex((q) => q.from === filters.from && q.to === filters.to) ? 'on' : ''} onClick={() => commit(p.from, p.to)}>
             {p.label}
           </button>
         ))}
@@ -479,4 +472,60 @@ export function DropZone({ onFile }: { onFile: (f: File) => void }) {
 
 export function weekdayName(day: number) {
   return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][weekday(day)]
+}
+
+// ------------------------------------------------------------------ sample store picker
+
+export function SamplePicker({ open, onClose, onOpenFile }: { open: boolean; onClose: () => void; onOpenFile: () => void }) {
+  const { sampleId, loadSample } = useApp()
+  const dialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const d = dialog.current
+    if (!d) return
+    if (open && !d.open) d.showModal()
+    if (!open && d.open) d.close()
+  }, [open])
+  return (
+    <dialog ref={dialog} className="sheet sheet-samples" onClose={onClose} onClick={(e) => e.target === dialog.current && onClose()} aria-labelledby="samples-title">
+      <div className="sheet-body">
+        <header className="sheet-head">
+          <h2 id="samples-title">Sample stores</h2>
+          <p>Try the app on a ready-made store, or open your own file.</p>
+          <div className="sheet-actions">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
+          </div>
+        </header>
+        <ul className="samples">
+          {SAMPLES.map((s) => (
+            <li key={s.id}>
+              <button
+                type="button"
+                className={`sample ${s.id === sampleId ? 'on' : ''}`}
+                aria-pressed={s.id === sampleId}
+                onClick={() => {
+                  loadSample(s.id)
+                  onClose()
+                }}
+              >
+                <span className={`kind kind-${s.kind}`}>{KIND_LABEL[s.kind]}</span>
+                <strong>{s.name}</strong>
+                <span>{s.blurb}</span>
+                <span className="sample-shows">{s.shows}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          className="btn btn-amber"
+          onClick={() => {
+            onClose()
+            onOpenFile()
+          }}
+        >
+          Open my own file
+        </button>
+      </div>
+    </dialog>
+  )
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Panel, Segmented } from '../ui/primitives'
+import { Details, Fig, Headline, Panel, Segmented } from '../ui/primitives'
+import { KIND_LABEL, SAMPLES } from '../samples'
 import { ROLE_LABEL, ROLE_ORDER } from '../engine/mapping'
 import type { DateConvention, Mapping, Role } from '../engine/types'
 import { CURRENCIES, fmtDay, money, plural, type Currency } from '../format'
@@ -10,7 +11,8 @@ import evaluation from '../../verification/web_evaluation.json'
 const CONF_LABEL = { exact: 'Matched', likely: 'Likely', guess: 'Best guess' } as const
 
 export function Data({ onOpen }: { onOpen: () => void }) {
-  const { ds, source, remap, currency, setCurrency, loadBundled } = useApp()
+  const { ds, source, remap, currency, setCurrency, loadBundled, sampleId } = useApp()
+  const sample = SAMPLES.find((s) => s.id === sampleId)
   const [draft, setDraft] = useState<Mapping>({})
   useEffect(() => setDraft(ds?.mapping ?? {}), [ds])
   const changed = ds ? ROLE_ORDER.some((r) => (draft[r] ?? '') !== (ds.mapping[r] ?? '')) : false
@@ -20,14 +22,10 @@ export function Data({ onOpen }: { onOpen: () => void }) {
       ? {
           title: 'Data check',
           lines: [
-            { label: 'Rows read', value: ds.rawRowCount.toLocaleString('en') },
-            { label: 'Rows used', value: ds.rows.length.toLocaleString('en') },
-            { label: 'Columns', value: String(ds.columns.length) },
-            { label: 'Columns mapped', value: String(Object.keys(ds.mapping).length) },
             { label: 'Dates read as', value: ds.options.dateConvention === 'dmy' ? 'day/month/year' : 'month/day/year' },
             { label: 'Revenue from', value: ds.revenueSource === 'revenue' ? (ds.mapping.revenue ?? '') : ds.revenueSource },
           ],
-          notes: ds.quality.length ? ds.quality.map((q) => (q.count ? `${q.text} (${q.count.toLocaleString('en')})` : q.text)) : ['No problems found while reading this file.'],
+          notes: ['Nothing leaves this browser tab.'],
         }
       : null,
     `data|${ds?.rows.length}|${ds?.quality.length}|${JSON.stringify(ds?.mapping)}|${ds?.options.dateConvention}|${ds?.options.dropExactDuplicates}`,
@@ -35,24 +33,72 @@ export function Data({ onOpen }: { onOpen: () => void }) {
 
   if (!ds) return null
   const used = new Set(Object.values(draft))
+  const warnings = ds.quality.filter((q) => q.level !== 'info').length
   const hint = ds.dateHint === 'dmy' ? 'The dates can only be day/month/year.' : ds.dateHint === 'mdy' ? 'The dates can only be month/day/year.' : ds.dateHint === 'iso' ? 'Dates are year-month-day, which reads the same either way.' : 'Dates like 08/11 could be either. Check a date you know.'
 
   return (
     <div className="mod mod-data">
       <header className="mod-head">
-        <div>
-          <h2>Data</h2>
-          <p className="mod-sub">{source?.name}</p>
-        </div>
+        <Headline k={`${ds.rows.length}|${Object.keys(ds.mapping).length}`}>
+          <p className="hl-line">
+            <Fig value={Object.keys(ds.mapping).length} format={(v) => String(Math.round(v))} /> of {ds.columns.length} columns understood, <Fig value={ds.rows.length} format={(v) => Math.round(v).toLocaleString('en')} /> rows ready.
+          </p>
+          <p className="hl-line hl-sub">
+            {warnings ? `${plural(warnings, 'thing')} to check below. ` : 'Nothing needs fixing. '}
+            Your file is read in this browser tab and never uploaded anywhere.
+          </p>
+        </Headline>
         <div className="row-actions">
           <button type="button" className="btn btn-sticker" onClick={onOpen}>Open a file</button>
           {!source?.bundled && (
-            <button type="button" className="btn btn-ghost" onClick={loadBundled}>Back to the sample store</button>
+            <button type="button" className="btn btn-ghost" onClick={loadBundled}>Back to a sample store</button>
           )}
         </div>
       </header>
 
-      <div className="data-layout">
+        {sample && (
+          <Panel title="About this sample" className="panel-about">
+            <p>
+              <span className={`kind kind-${sample.kind}`}>{KIND_LABEL[sample.kind]}</span> {sample.blurb} {sample.shows}
+            </p>
+            <p className="fine">
+              {sample.credit.text}{' '}
+              {sample.credit.href && (
+                <a href={sample.credit.href} target="_blank" rel="noreferrer">
+                  Source
+                </a>
+              )}
+              {sample.credit.licence && (
+                <>
+                  {' '}
+                  Licence:{' '}
+                  <a href={sample.credit.licenceHref} target="_blank" rel="noreferrer">
+                    {sample.credit.licence}
+                  </a>
+                  .
+                </>
+              )}
+            </p>
+          </Panel>
+        )}
+        <Panel title="What we found" className="panel-quality">
+          <ul className="quality">
+            <li className="q-info">
+              {plural(ds.rows.length, 'row')} used of {ds.rawRowCount.toLocaleString('en')} read
+              {ds.capabilities.dates ? `, from ${fmtDay(ds.minDay)} to ${fmtDay(ds.maxDay)}` : ''}.
+            </li>
+            {ds.quality.map((q) => (
+              <li key={q.text} className={`q-${q.level}`}>
+                {q.text}
+                {q.count ? <b> {q.count.toLocaleString('en')}</b> : null}
+              </li>
+            ))}
+          </ul>
+        </Panel>
+
+
+      <Details label="Show and fix the column matching" defaultOpen={!source?.bundled}>
+        <div className="data-layout">
         <Panel title="What each column means" className="panel-map">
           <p className="quiet">Columns are matched by whole words and then checked against their values. Change any match and apply.</p>
           <div className="maptable" role="table" aria-label="Column mapping">
@@ -138,24 +184,12 @@ export function Data({ onOpen }: { onOpen: () => void }) {
               ))}
             </select>
           </label>
-          <p className="fine">Your file is read in this browser tab and never uploaded anywhere.</p>
         </Panel>
 
-        <Panel title="What we found" className="panel-quality">
-          <ul className="quality">
-            <li className="q-info">
-              {plural(ds.rows.length, 'row')} used of {ds.rawRowCount.toLocaleString('en')} read
-              {ds.capabilities.dates ? `, from ${fmtDay(ds.minDay)} to ${fmtDay(ds.maxDay)}` : ''}.
-            </li>
-            {ds.quality.map((q) => (
-              <li key={q.text} className={`q-${q.level}`}>
-                {q.text}
-                {q.count ? <b> {q.count.toLocaleString('en')}</b> : null}
-              </li>
-            ))}
-          </ul>
-        </Panel>
+        </div>
+      </Details>
 
+      <Details label="Show the cleaned rows and how numbers are made">
         <Panel title="First rows after cleaning" className="panel-preview">
           <div className="scroll-x">
             <table className="table table-compact">
@@ -213,7 +247,7 @@ export function Data({ onOpen }: { onOpen: () => void }) {
             </div>
           </dl>
         </Panel>
-      </div>
+      </Details>
     </div>
   )
 }

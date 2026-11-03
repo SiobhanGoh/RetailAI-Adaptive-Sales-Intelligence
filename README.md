@@ -6,6 +6,8 @@
 
 RetailAI reads a CSV or Excel file of orders, works out what each column means, and turns it into six screens. The screens are order tickets hanging on a rail, and each one prints its own receipt of notes. Nothing is uploaded: the file stays in the browser tab, so the app can be hosted as a plain static site that never sleeps.
 
+Three sample stores are built in, each labelled for what it is: a fictional US office-supplies store, a **real** UK online gift shop, and a **synthetic** Malaysian grocery chain priced in RM. Switch between them from the store name at the top.
+
 Version 2 replaces the earlier Streamlit prototype. What changed, and what is still open, is listed at the end of this page.
 
 ## What it does
@@ -30,6 +32,8 @@ A printable **report** (save as PDF from the print dialog) collects the headline
 <p align="center">
 <img src="assets/screens/desktop-sales.webp" width="49%" alt="Sales mix by sub-category with amber bars and dark price chips" />
 <img src="assets/screens/desktop-graphite.webp" width="49%" alt="The same console in the graphite finish" />
+<img src="assets/screens/desktop-kedai-amber.webp" width="49%" alt="Overview of the synthetic Malaysian grocer Kedai Amber, in RM with a margin ticket" />
+<img src="assets/screens/desktop-uk-products.webp" width="49%" alt="Products screen on the real UK gift shop data: items bought in the same invoices" />
 </p>
 
 ## How it works
@@ -112,15 +116,27 @@ src/engine/       analytics engine (plain TypeScript, no UI): mapping, cleaning,
 src/modules/      the six screens and the report
 src/ui/, charts/  ticket rail, receipt printer, period strip, filters, charts
 test/             engine tests and a small synthetic messy fixture
-scripts/          evaluate.ts (evidence above), screenshots.mjs (README images)
-data/             superstore_sales.csv, the bundled sample
+scripts/          evaluate.ts (evidence above), generate-malaysia-store.ts, screenshots.mjs,
+                  check-samples.mjs
+data/             the three sample stores, served next to the app; sources/ holds the
+                  official Malaysian files the synthetic store is built from
 verification/     evaluation outputs
 research/         the original Python pipeline and tests, kept to reproduce archived results
 ```
 
 ## Data
 
-The bundled `data/superstore_sales.csv` is the widely shared "Superstore Sales" sample (9,800 order lines, 2015–2018). Its redistribution terms have not been confirmed; check them before republishing. `test/fixtures/synthetic_gift_shop.csv` is generated test data, not real sales.
+| Sample | File | What it is | What it shows off | Licence |
+|---|---|---|---|---|
+| Superstore | `data/superstore_sales.csv` (2.1 MB) | The widely shared fictional "Superstore Sales" teaching sample: 9,800 lines, 2015–2018, USD | Four years of trends, regions, segments | Redistribution terms not confirmed; check before republishing |
+| UK online gift shop | `data/online_retail_ii_sample.csv` (13.4 MB) | **Real** invoices: 158,114 lines, 1,695 customers, 1 Dec 2010 to 9 Dec 2011, GBP | Genuine returns (3,183 cancellation lines), baskets of many items, real repeat buying | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| Kedai Amber | `data/kedai_amber_synthetic.csv` (15.8 MB) | **Synthetic** Malaysian grocer: 15 branches plus online, 83,113 lines, 2023–2025, RM | Margins, discounts, returns, states and districts, Raya and Chinese New Year peaks | Built from CC BY 4.0 government data; see below |
+
+**UK online gift shop.** Chen, D. (2012). *Online Retail II* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5CG6D. CC BY 4.0. Modified by [`research/prepare_online_retail.py`](research/prepare_online_retail.py): kept 1 Dec 2010 to 9 Dec 2011, rows with a customer ID, product stock codes with a positive price, no exact duplicates or bad-debt adjustments, and every row for a fixed 40% of customers (chosen by hashing the customer ID). Cancellations are kept as returns. Re-run it on the official `online_retail_II.xlsx` (SHA-256 `bcbe73b3…e980`) to rebuild the file.
+
+**Kedai Amber** is made up. [`scripts/generate-malaysia-store.ts`](scripts/generate-malaysia-store.ts) builds it with a fixed seed, so `npm run generate:malaysia` recreates the same file byte for byte. Product names and pack sizes come from the PriceCatcher item lookup (KPDN and DOSM), the month-to-month shape of sales from DOSM's Index of Wholesale & Retail Trade, and branch states and districts from the PriceCatcher premise lookup, all via data.gov.my and OpenDOSM under CC BY 4.0. Prices, margins, customers, baskets, promotions, festival dates and returns are assumptions written into the script. Branch names are invented and match no real premise. Full credits and the list of assumptions: [`data/sources/malaysia/NOTICE.md`](data/sources/malaysia/NOTICE.md).
+
+`test/fixtures/synthetic_gift_shop.csv` is generated test data, not real sales.
 
 ## What changed from version 1
 
@@ -140,7 +156,9 @@ The bundled `data/superstore_sales.csv` is the widely shared "Superstore Sales" 
 - **New features:** date range, comparisons, filters with reset, customer segments and cohorts, item and sub-category pairing, unusual-week drivers, and CSV exports.
 - **Hosting:** the app moved off Streamlit to a static site that does not sleep.
 
-Still open: confirming the sample data's licence, and turning on GitHub Pages or Cloudflare Pages for the live link.
+- **Samples:** two more sample stores, so features the Superstore file can't show (returns, units, margins, discounts, real baskets, Malaysian geography and festivals) are visible straight away.
+
+Still open: confirming the Superstore sample's licence, checking Kedai Amber's hand-entered festival dates against the official gazette, and turning on GitHub Pages or Cloudflare Pages for the live link.
 
 ---
 

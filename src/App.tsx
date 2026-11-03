@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { gsap } from 'gsap'
 import { AppProvider, MODULES, useApp } from './state'
 import { ReceiptProvider } from './receipt'
-import { DisplayBand, DropZone, FilterSheet, ReceiptPrinter, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
+import { DisplayBand, DropZone, FilterSheet, ReceiptPrinter, SamplePicker, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
 import { reducedMotion } from './ui/primitives'
 import { Overview } from './modules/Overview'
 import { Sales } from './modules/Sales'
@@ -34,7 +34,7 @@ function Screen({ onOpen }: { onOpen: () => void }) {
   const screen = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     if (reducedMotion() || !screen.current) return
-    gsap.fromTo(screen.current, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', clearProps: 'transform' })
+    gsap.fromTo(screen.current.querySelectorAll('.mod > *, .report > *'), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, stagger: 0.06, ease: 'power3.out', clearProps: 'transform,opacity' })
   }, [module, report])
 
   const body = useMemo(() => {
@@ -79,6 +79,7 @@ function Screen({ onOpen }: { onOpen: () => void }) {
 
 function Console() {
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [samplesOpen, setSamplesOpen] = useState(false)
   const { pick, openFile } = useFileOpener()
   const { ds, report } = useApp()
   const shell = useRef<HTMLDivElement>(null)
@@ -101,10 +102,9 @@ function Console() {
     if (reducedMotion() || seen) return
     const q = gsap.utils.selector(shell.current)
     const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
-    tl.from(q('.order'), { y: -70, rotate: (i) => (i % 2 ? 7 : -6), opacity: 0, duration: 0.9, stagger: 0.06, ease: 'elastic.out(1, 0.55)' })
+    tl.from(q('.order'), { y: -70, rotate: (i) => (i % 2 ? 7 : -6), opacity: 0, duration: 0.9, stagger: 0.06, ease: 'elastic.out(1, 0.55)', clearProps: 'transform,opacity' })
       .from(q('.band-cell'), { opacity: 0, y: -6, duration: 0.35, stagger: 0.05 }, 0.1)
       .from(q('.ticket'), { y: 26, opacity: 0, duration: 0.6, stagger: 0.07 }, 0.25)
-      .from(q('.panel-scope .scope-line'), { strokeDashoffset: 4000, strokeDasharray: 4000, duration: 1.4, ease: 'power2.inOut', clearProps: 'strokeDasharray,strokeDashoffset' }, 0.35)
       .from(q('.tuning'), { opacity: 0, y: 12, duration: 0.5 }, 0.4)
   }, [ds])
 
@@ -117,7 +117,7 @@ function Console() {
       <a className="skip" href="#screen">Skip to the screen</a>
       <header className="topbar">
         <Logo />
-        <DisplayBand />
+        <DisplayBand onPickSample={() => setSamplesOpen(true)} />
         <Utilities onFilters={openFilters} onUpload={pick} />
       </header>
       <TicketRail />
@@ -129,6 +129,7 @@ function Console() {
         <TuningBand />
       </footer>
       <FilterSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} />
+      <SamplePicker open={samplesOpen} onClose={() => setSamplesOpen(false)} onOpenFile={pick} />
       <DropZone onFile={openFile} />
     </div>
   )

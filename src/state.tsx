@@ -4,6 +4,7 @@ import { buildDataset, type RawRecord } from './engine/clean'
 import { parseCsvText } from './engine/load'
 import { filterRows, kpis, comparisons, weeklySeries, type Filters, type Kpis, type Comparison, type Week } from './engine/aggregate'
 import { guessCurrency, type Currency } from './format'
+import { SAMPLES, type Sample, type SampleId } from './samples'
 
 export type ModuleId = 'overview' | 'sales' | 'forecast' | 'customers' | 'products' | 'data'
 
@@ -23,6 +24,7 @@ interface Source {
   records: RawRecord[]
   columns: string[]
   bundled: boolean
+  sample?: SampleId
 }
 
 interface AppState {
@@ -41,10 +43,12 @@ interface AppState {
   setCompare: (c: CompareMode) => void
   currency: Currency
   setCurrency: (c: Currency) => void
-  theme: 'console' | 'showroom'
-  setTheme: (t: 'console' | 'showroom') => void
+  theme: Theme
+  setTheme: (t: Theme) => void
   loadTable: (name: string, records: RawRecord[], columns: string[], bundled?: boolean) => void
   loadBundled: () => void
+  loadSample: (id: SampleId) => void
+  sampleId: SampleId | null
   remap: (mapping: Mapping, options: Partial<CleanOptions>) => void
   setLoading: (s: string | null) => void
   setError: (s: string | null) => void
@@ -67,12 +71,19 @@ export function useApp(): AppState {
   return v
 }
 
-function readTheme(): 'console' | 'showroom' {
+export type Theme = 'light' | 'dark'
+
+/** A saved choice wins, then an explicit host setting, then the device's light/dark preference. */
+export function initialTheme(): Theme {
   try {
-    return localStorage.getItem('retailai-theme') === 'showroom' ? 'showroom' : 'console'
+    const saved = localStorage.getItem('retailai-theme')
+    if (saved === 'light' || saved === 'dark') return saved
   } catch {
-    return 'console'
+    /* storage unavailable */
   }
+  const host = document.documentElement.dataset.theme
+  if (host === 'light' || host === 'dark') return host
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -85,10 +96,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [report, setReport] = useState(false)
   const [compare, setCompare] = useState<CompareMode>('previous')
   const [currency, setCurrency] = useState<Currency>('USD')
-  const [theme, setThemeRaw] = useState<'console' | 'showroom'>(readTheme)
+  const [theme, setThemeRaw] = useState<Theme>(initialTheme)
   const [printSeq, setPrintSeq] = useState(0)
 
-  const setTheme = useCallback((t: 'console' | 'showroom') => {
+  const setTheme = useCallback((t: Theme) => {
     setThemeRaw(t)
     try {
       localStorage.setItem('retailai-theme', t)
@@ -103,17 +114,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const adopt = useCallback((next: Dataset) => {
     setDs(next)
-    setFiltersRaw({ from: next.minDay, to: next.maxDay, dims: {} })
+    // Open on the latest 52 weeks when there is at least two years of data, so every
+    // figure has a comparison from the first glance. Shorter files open on everything.
+    const long = Number.isFinite(next.minDay) && next.maxDay - next.minDay >= 2 * 364
+    setFiltersRaw({ from: long ? next.maxDay - 363 : next.minDay, to: next.maxDay, dims: {} })
     setPrintSeq((s) => s + 1)
   }, [])
 
   const loadTable = useCallback(
-    (name: string, records: RawRecord[], columns: string[], bundled = false) => {
+    (name: string, records: RawRecord[], columns: string[], bundled = false, sample?: Sample) => {
       const next = buildDataset(name, records, columns)
-      setSource({ name, records, columns, bundled })
+      setSource({ name, records, columns, bundled, sample: sample?.id })
       const revCol = next.mapping.revenue ?? next.mapping.unitPrice
       const guessed = revCol ? guessCurrency(records.map((r) => r[revCol])) : null
-      setCurrency(bundled ? 'USD' : guessed ?? 'NONE')
+      setCurrency(sample ? sample.currency : guessed ?? 'NONE')
       adopt(next)
       setError(null)
       setLoading(null)
@@ -123,22 +137,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [adopt],
   )
 
-  const loadBundled = useCallback(() => {
-    setLoading('Loading the sample store')
-    import('../data/superstore_sales.csv?raw')
-      .then((m) => {
-        const t = parseCsvText(m.default)
-        loadTable('Superstore sample (US office supplies, 2015–2018)', t.records, t.columns, true)
-      })
-      .catch((e) => {
-        setError(`The sample dataset could not be loaded: ${e instanceof Error ? e.message : String(e)}`)
-        setLoading(null)
-      })
-  }, [loadTable])
+  const loadSample = useCallback(
+    (id: SampleId) => {
+      const sample = SAMPLES.find((s) => s.id === id) ?? SAMPLES[0]
+      setLoading(`Opening ${sample.name}`)
+      try {
+        localStorage.setItem('retailai-sample', sample.id)
+      } catch {
+        /* the choice just isn't remembered */
+      }
+      fetch(new URL(sample.file, document.baseURI))
+        .then((r) => {
+          if (!r.ok) throw new Error(`${sample.file} returned ${r.status}`)
+          return r.text()
+        })
+        .then((text) => {
+          const t = parseCsvText(text)
+          loadTable(sample.name, t.records, t.columns, true, sample)
+        })
+        .catch((e) => {
+          setError(`The ${sample.name} sample could not be loaded: ${e instanceof Error ? e.message : String(e)}`)
+          setLoading(null)
+        })
+    },
+    [loadTable],
+  )
+  const loadBundled = useCallback(() => loadSample('superstore'), [loadSample])
 
   useEffect(() => {
-    loadBundled()
-  }, [loadBundled])
+    let first: SampleId = 'superstore'
+    try {
+      const saved = localStorage.getItem('retailai-sample') as SampleId | null
+      if (saved && SAMPLES.some((s) => s.id === saved)) first = saved
+    } catch {
+      /* use the default */
+    }
+    loadSample(first)
+  }, [loadSample])
 
   const remap = useCallback(
     (mapping: Mapping, options: Partial<CleanOptions>) => {
@@ -177,7 +212,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppState = {
     source, ds, loading, error, filters, setFilters, resetFilters, module, setModule, report, setReport,
-    compare, setCompare, currency, setCurrency, theme, setTheme, loadTable, loadBundled, remap,
+    compare, setCompare, currency, setCurrency, theme, setTheme, loadTable, loadBundled, loadSample, sampleId: source?.sample ?? null, remap,
     setLoading, setError, printSeq, ...derived,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

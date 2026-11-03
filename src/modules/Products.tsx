@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Empty, Panel } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Panel } from '../ui/primitives'
 import { buildIndex, similarProducts, subcategoryAffinity, suggestFor, togetherWith, topPairs, type Suggestion } from '../engine/recommend'
-import { downloadCsv, money, plural } from '../format'
+import { downloadCsv, money, plural, shorten } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
 
 function TagList({ items, empty, why }: { items: Suggestion[]; empty: string; why: (s: Suggestion) => string }) {
@@ -21,7 +21,7 @@ function TagList({ items, empty, why }: { items: Suggestion[]; empty: string; wh
 }
 
 export function Products() {
-  const { ds, rows, currency, source } = useApp()
+  const { ds, rows, currency, sampleId } = useApp()
   const idx = useMemo(() => (ds?.capabilities.products ? buildIndex(rows) : null), [rows, ds])
   const [query, setQuery] = useState('')
   const byName = useMemo(() => {
@@ -53,15 +53,8 @@ export function Products() {
           lines: [
             { label: 'Products sold', value: String(idx.products.size) },
             { label: 'Orders with 2+ items', value: `${(multiShare * 100).toFixed(0)}%` },
-            { label: 'Repeated item pairs', value: String(topPairs(idx, 10_000).length) },
-            { label: 'Looking at', value: info.name.length > 24 ? `${info.name.slice(0, 23)}…` : info.name },
-            { label: 'In orders', value: String(info.orders) },
-            { label: 'Sales', value: money(info.net, currency) },
           ],
-          notes: [
-            together.length ? `${together.length} items shared an order with it.` : 'No other order contains this exact item, so the lists below lean on sub-category and wording.',
-            'Similarity is not purchase probability. None of these methods beat plain best sellers on held-out orders in the sample store.',
-          ],
+          notes: [sampleId === 'superstore' ? 'These are ideas to browse, not predictions: on later orders in this sample, none beat plain best sellers.' : 'Lists come from shared orders and similar wording, not from a trained model.'],
         }
       : null,
     `pr|${seed}|${rows.length}|${currency}`,
@@ -73,13 +66,21 @@ export function Products() {
   return (
     <div className="mod mod-products">
       <header className="mod-head">
-        <div>
-          <h2>Products</h2>
-          <p className="mod-sub">{plural(idx.products.size, 'product')} across {plural(idx.orders, 'order')}</p>
-        </div>
+        <Headline k={`${seed}`}>
+          {info ? (
+            <>
+              <p className="hl-line">
+                <b className="fig fig-name">{shorten(info.name, 40)}</b> sold <Fig value={info.net} format={(v) => money(v, currency)} /> in {plural(info.orders, 'order')}.
+              </p>
+              <p className="hl-line hl-sub">
+                {together[0] ? `People who bought it also picked up ${together[0].name}.` : `No other order contains it yet, so the lists lean on its ${info.subcategory ? 'sub-category' : 'description'}.`}
+              </p>
+            </>
+          ) : null}
+        </Headline>
         <label className="select-wrap select-wide">
-          <span>Find a product</span>
-          <input className="field" list="product-list" value={query} placeholder={info?.name ?? 'Type a product name'} onChange={(e) => setQuery(e.target.value)} />
+          <span>Look up any product</span>
+          <input className="field" list="product-list" value={query} placeholder="Type a product name" onChange={(e) => setQuery(e.target.value)} />
           <datalist id="product-list">
             {[...byName.keys()].slice(0, 3000).map((n) => (
               <option key={n} value={n} />
@@ -88,31 +89,19 @@ export function Products() {
         </label>
       </header>
 
-      {info && (
-        <div className="shelf-label">
-          <div>
-            <span className="shelf-cat">{[info.category, info.subcategory].filter(Boolean).join(' / ') || 'Uncategorised'}</span>
-            <h3>{info.name}</h3>
-          </div>
-          <div className="shelf-price">
-            <b>{money(info.net, currency)}</b>
-            <span>in {plural(info.orders, 'order')}</span>
-          </div>
-        </div>
-      )}
-
       <div className="trio">
-        <Panel glass title="Bought in the same order">
+        <Panel bare title="Bought in the same order">
           <TagList items={together} empty="No other order contains this item yet." why={(s) => `Together in ${plural(s.evidence, 'order')}`} />
         </Panel>
-        <Panel glass title={`Best sellers in ${info?.subcategory ?? 'its sub-category'}`}>
+        <Panel bare title={`Best sellers in ${info?.subcategory ?? 'its sub-category'}`}>
           <TagList items={sameSub} empty="This item has no sub-category to compare within." why={(s) => `In ${plural(s.evidence, 'order')}`} />
         </Panel>
-        <Panel glass title="Similar description">
+        <Panel bare title="Similar description">
           <TagList items={similar} empty="No other product shares words with this one." why={(s) => `${Math.round(s.score * 100)}% word overlap`} />
         </Panel>
       </div>
 
+      <Details label="Show pairs that sell together">
       <div className="split">
         <Panel
           title="Item pairs seen more than once"
@@ -156,11 +145,12 @@ export function Products() {
         )}
       </div>
 
-      {source?.bundled && (
+      {sampleId === 'superstore' && (
         <p className="note">
           On later orders in this sample store, guessing the other items in a basket from one item worked {evalProducts.popular.hit_rate_at_5_pct}% of the time with plain best sellers, {evalProducts['together+popular'].hit_rate_at_5_pct}% with bought-together and {evalProducts.similar.hit_rate_at_5_pct}% with similar descriptions. Baskets here rarely repeat, so use these lists for browsing ideas rather than as predictions.
         </p>
       )}
+      </Details>
     </div>
   )
 }
