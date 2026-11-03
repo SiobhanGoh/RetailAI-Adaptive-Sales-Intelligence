@@ -67,17 +67,13 @@ export function Forecast() {
       ? {
           title: `${H}-week outlook`,
           lines: [
-            { label: 'Forecast total', value: money(total, currency, 'whole') },
             { label: baseLabel, value: money(base, currency, 'whole') },
-            { label: 'Change', value: `${total >= base ? '+' : '−'}${pct(Math.abs(total - base) / Math.max(1, base))}`, tone: total >= base ? 'up' : 'down' },
             { label: `Last ${H} weeks`, value: money(lastActual, currency, 'whole') },
             { label: 'Model used', value: MODEL_SHORT[result.chosen] },
-            { label: 'Typical error (WAPE)', value: pct(chosenScore!.wape) },
-            { label: 'Backtest forecasts', value: String(chosenScore!.n) },
+            { label: 'Typical miss', value: pct(chosenScore!.wape, 0) },
           ],
           notes: [
-            `Every model was replayed from ${result.origins} past weeks; the one with the lowest error over ${H} weeks is used.`,
-            'Picking and scoring on the same replay flatters the winner a little. Treat the band as a guide, not a promise.',
+            `Tested by replaying ${result.origins} past weeks. Treat the range as a guide, not a promise.`,
             ...(actualAfter.length ? ['Your period ends before the data does, so the chart also shows what actually happened.'] : []),
           ],
         }

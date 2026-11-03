@@ -32,16 +32,10 @@ export function Customers() {
       ? {
           title: 'Customer health',
           lines: [
-            { label: 'Customers in period', value: String(stats.length) },
-            { label: 'Bought more than once', value: pct(rep.repeatShare, 0) },
-            ...(rep.medianGapDays !== null ? [{ label: 'Median days between orders', value: rep.medianGapDays.toFixed(0) }] : []),
-            { label: 'Champions', value: `${champions.customers}, ${pct(champions.share, 0)} of sales` },
-            { label: 'At risk', value: `${atRisk.customers}, ${pct(atRisk.share, 0)} of sales`, tone: atRisk.customers ? 'down' : undefined },
+            ...(rep.medianGapDays !== null ? [{ label: 'Days between orders', value: `${rep.medianGapDays.toFixed(0)} (median)` }] : []),
+            { label: 'At-risk share of sales', value: pct(atRisk.share, 0), tone: atRisk.customers ? 'down' : undefined },
           ],
-          notes: [
-            `Recency and frequency are scored 1–5 by rank within this period, so the grid always spreads customers across all five levels.`,
-            atRisk.customers ? `${atRisk.customers} frequent buyers have gone quiet. ${atRisk.action}` : 'No frequent buyer has gone quiet in this period.',
-          ],
+          notes: [atRisk.customers ? atRisk.action : 'No regular buyer has gone quiet in this period.'],
         }
       : null,
     `cu|${stats.length}|${filters.from}|${filters.to}|${currency}|${champions.customers}`,
@@ -119,7 +113,7 @@ export function Customers() {
           </div>
         </Panel>
 
-        <Panel glass title="Next purchase ideas" className="panel-next">
+        <Panel bare title="Next purchase ideas" className="panel-next">
           <label className="select-wrap">
             <span>Customer</span>
             <input className="field" list="customer-list" value={who} placeholder={person?.name ?? "Type a name or ID"} onChange={(e) => setWho(e.target.value)} />

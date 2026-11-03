@@ -10,7 +10,7 @@
   --alu-lo: #c6c0b5;
   --chassis-ink: #2b2520;
   --chassis-dim: #7a6f63;
-  --brush: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 1px, rgba(70, 55, 40, 0.03) 1px 3px);
+  --brush: none; /* the striped metal texture was too busy; surfaces are now plain */
   --chassis: linear-gradient(180deg, var(--alu-hi), var(--alu) 45%, var(--alu-lo));
   --raised: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 -2px 0 rgba(60, 45, 30, 0.12) inset, 0 8px 18px rgba(60, 45, 30, 0.16);
   --sunk: 0 2px 6px rgba(40, 30, 20, 0.35) inset, 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -57,8 +57,8 @@
   --s5: #b9a6e3;
   --s6: #f2c14e;
 
-  --radius: 14px;
-  --gap: 16px;
+  --radius: 16px;
+  --gap: 24px;
   color-scheme: light;
 }
 
@@ -82,7 +82,7 @@
   --alu-lo: #201d1a;
   --chassis-ink: #f1e9dc;
   --chassis-dim: #a8998a;
-  --brush: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, rgba(0, 0, 0, 0.05) 1px 3px);
+  --brush: none;
   --raised: 0 1px 0 rgba(255, 255, 255, 0.09) inset, 0 -2px 0 rgba(0, 0, 0, 0.3) inset, 0 8px 18px rgba(0, 0, 0, 0.35);
   --sunk: 0 2px 6px rgba(0, 0, 0, 0.6) inset, 0 1px 0 rgba(255, 255, 255, 0.06);
   color-scheme: dark;
@@ -2487,4 +2487,229 @@ button.tagbar:hover {
 }
 .mod-head .headline + .segmented {
   align-self: flex-end;
+}
+
+/* ---------------------------------------------------------------- calm pass
+   Fewer edges, more air: one story line, one set of numbers, one place for notes. */
+
+.chassis {
+  gap: 14px;
+  padding: 20px 32px 18px;
+}
+.topbar {
+  gap: 28px;
+}
+.band {
+  gap: 14px;
+  font-size: 13.5px;
+}
+.band-cell:not(.band-store) {
+  color: var(--chassis-dim);
+}
+.band-filter {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--amber-hot) 18%, transparent);
+  color: var(--chassis-ink) !important;
+}
+.utils .btn-metal:not(.btn-icon):not(.on) {
+  background: transparent;
+  box-shadow: none;
+  color: var(--chassis-ink);
+}
+.utils .btn-metal:not(.btn-icon):not(.on):hover {
+  background: var(--track);
+}
+
+.rail {
+  padding-top: 4px;
+}
+.rail-bar {
+  height: 6px;
+  top: 4px;
+  box-shadow: 0 2px 4px rgba(40, 30, 20, 0.18);
+}
+.rail-tickets {
+  gap: 10px;
+  padding: 0 4px 8px;
+}
+.order {
+  flex: 0 0 auto;
+  min-width: 118px;
+  max-width: none;
+  padding: 13px 18px 15px;
+  box-shadow: 0 6px 12px rgba(40, 30, 20, 0.12);
+}
+.order-label {
+  font-size: 14.5px;
+}
+.order.on {
+  transform: translateY(6px) rotate(0deg);
+}
+
+.deckrow {
+  grid-template-columns: minmax(0, 1fr) 272px;
+  gap: 32px;
+}
+.screen-glass {
+  padding: 18px 6px 40px 2px;
+}
+.mod {
+  gap: 28px;
+  max-width: 1120px;
+}
+.mod-head {
+  margin-bottom: 0;
+  align-items: flex-end;
+}
+.hl-line {
+  font-size: clamp(26px, 2.6vw, 38px);
+  line-height: 1.15;
+}
+.hl-sub {
+  font-size: clamp(15px, 1.3vw, 18px);
+  line-height: 1.4;
+}
+
+.panel {
+  padding: 22px 24px 24px;
+}
+.panel-paper {
+  box-shadow: 0 1px 2px rgba(40, 30, 20, 0.06), 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.panel-head {
+  margin-bottom: 16px;
+}
+
+.deck {
+  gap: 20px;
+}
+.ticket-wrap {
+  filter: drop-shadow(0 4px 8px rgba(60, 45, 30, 0.1));
+}
+.ticket-body {
+  padding: 20px 22px 18px;
+  gap: 14px;
+}
+.ticket-stub {
+  padding: 0 22px;
+}
+
+.printer {
+  padding: 12px 14px 0;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--chassis-ink) 8%, transparent);
+  background: color-mix(in srgb, var(--chassis-ink) 4%, transparent);
+}
+.paper {
+  padding: 22px 18px 26px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.paper-meta {
+  border-bottom: 0;
+  padding-bottom: 0;
+  margin: 2px 0 14px !important;
+}
+.paper-lines {
+  gap: 6px;
+}
+.paper-notes {
+  gap: 10px;
+  padding-top: 14px;
+  margin-top: 14px;
+}
+
+.controls {
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--chassis-ink) 4%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--chassis-ink) 8%, transparent);
+}
+.tuning-presets {
+  display: flex;
+  gap: 2px;
+}
+.tuning-presets button:not(.on) {
+  background: transparent;
+  box-shadow: none;
+  color: var(--chassis-dim);
+}
+.tuning-presets button:not(.on):hover {
+  color: var(--chassis-ink);
+}
+.tuning-dial {
+  height: 44px;
+}
+
+.details-toggle {
+  background: transparent;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--chassis-ink) 18%, transparent);
+  font-weight: 550;
+  color: var(--chassis-dim);
+}
+.details-toggle:hover {
+  color: var(--chassis-ink);
+}
+
+@media (max-width: 900px) {
+  .chassis {
+    padding: 12px 16px 0;
+  }
+  .deckrow {
+    grid-template-columns: 1fr;
+  }
+  .order {
+    min-width: 0;
+    padding: 11px 14px 13px;
+  }
+  .mod {
+    gap: 22px;
+  }
+}
+
+.panel-bare {
+  padding: 4px 0 0;
+  background: none;
+  box-shadow: none;
+  color: var(--chassis-ink);
+  --text: var(--chassis-ink);
+  --text-dim: var(--chassis-dim);
+}
+.panel-bare .panel-head h3 {
+  color: var(--chassis-dim);
+  font-weight: 600;
+}
+.panel-bare .tag {
+  box-shadow: 0 3px 8px rgba(40, 30, 20, 0.12), 0 0 0 1px rgba(40, 30, 20, 0.05);
+}
+.panel-bare .tag::before {
+  background: var(--alu);
+}
+.panel-bare .field {
+  background: var(--card-hi);
+  color: var(--ink);
+}
+.fig-name {
+  white-space: normal;
+}
+.ticket:not(.ticket-hero) .ticket-body {
+  align-content: space-between;
+}
+.printer {
+  align-self: start;
+  max-height: 100%;
+}
+.controls {
+  background: color-mix(in srgb, var(--chassis-ink) 4%, var(--alu));
+}
+@media (max-width: 900px) {
+  .controls {
+    box-shadow: 0 -8px 20px rgba(40, 30, 20, 0.12), 0 0 0 1px color-mix(in srgb, var(--chassis-ink) 8%, transparent);
+  }
+  .tuning-cap {
+    display: none;
+  }
+  .tuning-presets {
+    scrollbar-width: none;
+  }
 }

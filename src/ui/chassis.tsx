@@ -13,7 +13,7 @@ import { weekday } from '../engine/values'
 // ------------------------------------------------------------------ status chips
 
 export function DisplayBand() {
-  const { ds, filters, rows } = useApp()
+  const { ds, filters } = useApp()
   const active = Object.values(filters.dims).reduce((a, v) => a + (v?.length ?? 0), 0)
   return (
     <div className="band" role="status" aria-live="polite">
@@ -22,11 +22,7 @@ export function DisplayBand() {
         {ds ? ds.name : 'No data loaded'}
       </span>
       <span className="band-cell">{ds?.capabilities.dates ? rangeLabel(filters.from, filters.to) : 'Undated rows'}</span>
-      <span className="band-cell">
-        <i className={`lamp ${active ? 'lamp-on' : ''}`} aria-hidden />
-        {active ? `${plural(active, 'filter')} on` : 'All segments'}
-      </span>
-      <span className="band-cell band-count">{plural(rows.length, 'line')}</span>
+      {active > 0 && <span className="band-cell band-filter">{plural(active, 'filter')} on</span>}
     </div>
   )
 }
@@ -57,7 +53,6 @@ export function TicketRail() {
             >
               <span className="order-clip" aria-hidden />
               <span className="order-label">{m.label}</span>
-              <span className="order-hint">{m.hint}</span>
             </button>
           )
         })}
@@ -117,7 +112,7 @@ export function useShortcuts(handlers: { filters: () => void; upload: () => void
 
 export function ReceiptPrinter() {
   const content = useReceiptContent()
-  const { printSeq, ds, rows } = useApp()
+  const { printSeq } = useApp()
   const paper = useRef<HTMLDivElement>(null)
   const [printing, setPrinting] = useState(false)
   const key = content ? `${content.title}|${content.lines.map((l) => l.value).join('|')}|${printSeq}` : ''
@@ -149,13 +144,7 @@ export function ReceiptPrinter() {
             <>
               <p className="paper-store">RetailAI</p>
               <p className="paper-title">{content.title}</p>
-              <p className="paper-meta">
-                {ds?.name}
-                <br />
-                {plural(rows.length, 'line')}
-                <br />
-                Printed at {stamp}
-              </p>
+              <p className="paper-meta">Printed {stamp}</p>
               <dl className="paper-lines">
                 {content.lines.map((l) => (
                   <div key={l.label} className={l.tone ? `tone-${l.tone}` : ''}>
@@ -171,7 +160,7 @@ export function ReceiptPrinter() {
                   ))}
                 </ul>
               )}
-              <p className="paper-foot">Calculated from your rows with fixed rules. No text here is AI-written.</p>
+              <p className="paper-foot">Worked out from your rows</p>
               <Barcode seed={key} />
             </>
           ) : (
@@ -265,8 +254,8 @@ export function TuningBand() {
   return (
     <div className="tuning">
       <div className="tuning-presets" role="group" aria-label="Quick periods">
-        {presets.map((p) => (
-          <button key={p.label} type="button" className={p.from === filters.from && p.to === filters.to ? 'on' : ''} onClick={() => commit(p.from, p.to)}>
+        {presets.map((p, i) => (
+          <button key={p.label} type="button" className={i === presets.findIndex((q) => q.from === filters.from && q.to === filters.to) ? 'on' : ''} onClick={() => commit(p.from, p.to)}>
             {p.label}
           </button>
         ))}

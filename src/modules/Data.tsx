@@ -20,14 +20,10 @@ export function Data({ onOpen }: { onOpen: () => void }) {
       ? {
           title: 'Data check',
           lines: [
-            { label: 'Rows read', value: ds.rawRowCount.toLocaleString('en') },
-            { label: 'Rows used', value: ds.rows.length.toLocaleString('en') },
-            { label: 'Columns', value: String(ds.columns.length) },
-            { label: 'Columns mapped', value: String(Object.keys(ds.mapping).length) },
             { label: 'Dates read as', value: ds.options.dateConvention === 'dmy' ? 'day/month/year' : 'month/day/year' },
             { label: 'Revenue from', value: ds.revenueSource === 'revenue' ? (ds.mapping.revenue ?? '') : ds.revenueSource },
           ],
-          notes: ds.quality.length ? ds.quality.map((q) => (q.count ? `${q.text} (${q.count.toLocaleString('en')})` : q.text)) : ['No problems found while reading this file.'],
+          notes: ['Nothing leaves this browser tab.'],
         }
       : null,
     `data|${ds?.rows.length}|${ds?.quality.length}|${JSON.stringify(ds?.mapping)}|${ds?.options.dateConvention}|${ds?.options.dropExactDuplicates}`,

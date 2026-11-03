@@ -48,20 +48,17 @@ export function Sales() {
   usePrint(
     ds
       ? {
-          title: `Sales by ${active === 'product' ? 'product' : DIMENSION_LABEL[active as Dimension].toLowerCase()}`,
+          title: 'Sales mix notes',
           lines: [
-            ...shown.slice(0, 5).map((s) => ({ label: s.key.length > 26 ? `${s.key.slice(0, 25)}…` : s.key, value: `${money(s.net, currency)} ${pct(s.share, 0)}` })),
             ...(top20 !== undefined ? [{ label: 'Top 20% of products', value: pct(top20, 0) }] : []),
             ...(ship ? [{ label: 'Median days to ship', value: String(ship.median) }] : []),
           ],
           notes: [
-            ...(bestCell ? [`Strongest average day: ${DAY_NAMES[bestCell.w]}s in ${MONTH_NAMES[bestCell.m]}.`] : []),
             ...(shown.length > 1
               ? shown[0].net >= 2 * Math.max(1, shown[shown.length - 1].net)
                 ? [`${shown[0].key} sells ${(shown[0].net / Math.max(1, shown[shown.length - 1].net)).toFixed(0)}× as much as ${shown[shown.length - 1].key}.`]
                 : [`The ${shown.length} groups are within ${((shown[0].share - shown[shown.length - 1].share) * 100).toFixed(0)} points of each other.`]
               : []),
-            active === 'product' ? 'Products are grouped by ID; names shown are the first seen.' : 'Select a bar to filter every screen to it.',
           ],
         }
       : null,
@@ -82,7 +79,7 @@ export function Sales() {
         <Headline k={`${active}|${lead?.key}|${rows.length}`}>
           {lead && (
             <p className="hl-line">
-              <Fig value={lead.share} format={(v) => pct(v, 0)} /> of sales came from <b className="fig">{shorten(lead.key, 56)}</b>.
+              <Fig value={lead.share} format={(v) => pct(v, 0)} /> of sales came from <b className="fig fig-name">{shorten(lead.key, 56)}</b>.
             </p>
           )}
           <p className="hl-line hl-sub">

@@ -53,15 +53,8 @@ export function Products() {
           lines: [
             { label: 'Products sold', value: String(idx.products.size) },
             { label: 'Orders with 2+ items', value: `${(multiShare * 100).toFixed(0)}%` },
-            { label: 'Repeated item pairs', value: String(topPairs(idx, 10_000).length) },
-            { label: 'Looking at', value: info.name.length > 24 ? `${info.name.slice(0, 23)}…` : info.name },
-            { label: 'In orders', value: String(info.orders) },
-            { label: 'Sales', value: money(info.net, currency) },
           ],
-          notes: [
-            together.length ? `${together.length} items shared an order with it.` : 'No other order contains this exact item, so the lists below lean on sub-category and wording.',
-            'Similarity is not purchase probability. None of these methods beat plain best sellers on held-out orders in the sample store.',
-          ],
+          notes: ['These are ideas to browse, not predictions: on later orders in the sample, none beat plain best sellers.'],
         }
       : null,
     `pr|${seed}|${rows.length}|${currency}`,
@@ -77,7 +70,7 @@ export function Products() {
           {info ? (
             <>
               <p className="hl-line">
-                <b className="fig">{shorten(info.name, 64)}</b> sold <Fig value={info.net} format={(v) => money(v, currency)} /> in {plural(info.orders, 'order')}.
+                <b className="fig fig-name">{shorten(info.name, 40)}</b> sold <Fig value={info.net} format={(v) => money(v, currency)} /> in {plural(info.orders, 'order')}.
               </p>
               <p className="hl-line hl-sub">
                 {together[0] ? `People who bought it also picked up ${together[0].name}.` : `No other order contains it yet, so the lists lean on its ${info.subcategory ? 'sub-category' : 'description'}.`}
@@ -97,13 +90,13 @@ export function Products() {
       </header>
 
       <div className="trio">
-        <Panel glass title="Bought in the same order">
+        <Panel bare title="Bought in the same order">
           <TagList items={together} empty="No other order contains this item yet." why={(s) => `Together in ${plural(s.evidence, 'order')}`} />
         </Panel>
-        <Panel glass title={`Best sellers in ${info?.subcategory ?? 'its sub-category'}`}>
+        <Panel bare title={`Best sellers in ${info?.subcategory ?? 'its sub-category'}`}>
           <TagList items={sameSub} empty="This item has no sub-category to compare within." why={(s) => `In ${plural(s.evidence, 'order')}`} />
         </Panel>
-        <Panel glass title="Similar description">
+        <Panel bare title="Similar description">
           <TagList items={similar} empty="No other product shares words with this one." why={(s) => `${Math.round(s.score * 100)}% word overlap`} />
         </Panel>
       </div>

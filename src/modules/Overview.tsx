@@ -1,13 +1,13 @@
 import { useMemo } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Delta, Details, Empty, Fig, Headline, Hint, Panel, Pill, Readout, Segmented, Spark, Ticket } from '../ui/primitives'
+import { Delta, Details, Empty, Headline, Panel, Readout, Segmented, Spark, Ticket } from '../ui/primitives'
 import { Scope } from '../charts/Scope'
 import { ShareStack } from '../charts/misc'
 import { breakdown, filterRows, pctChange, shareOfTop, weekEnd } from '../engine/aggregate'
 import { findAnomalies } from '../engine/anomalies'
 import { DIMENSION_LABEL } from '../engine/types'
-import { count, fmtDay, money, pct, plural, signedPct } from '../format'
+import { fmtDay, money, pct, plural } from '../format'
 
 export function Overview() {
   const { ds, rows, k, activeComp, compare, setCompare, currency, weeks, filters } = useApp()
@@ -63,28 +63,25 @@ export function Overview() {
   const netChange = pctChange(k?.net ?? 0, c?.net)
   const latestAnomaly = anomalies[anomalies.length - 1]
 
+  // The receipt carries the notes: things worth knowing that the tickets and chart don't already say.
+  const notes: string[] = []
+  if (mover && mover.delta !== 0) notes.push(`${mover.key} ${mover.delta > 0 ? 'grew' : 'fell'} the most: ${mover.delta > 0 ? '+' : '−'}${money(Math.abs(mover.delta), currency)} against the ${cl}.`)
+  if (latestAnomaly) notes.push(`Unusual week ending ${fmtDay(latestAnomaly.end)}: ${money(latestAnomaly.net, currency)} against a usual ${money(latestAnomaly.baseline, currency)}${latestAnomaly.drivers[0] ? `, mostly ${latestAnomaly.drivers[0].key}` : ''}.`)
+  if (top20 !== undefined) notes.push(`The top 20% of products bring ${pct(top20, 0)} of sales, so their stock matters most.`)
   usePrint(
     k && ds
       ? {
-          title: 'Period summary',
+          title: 'What stands out',
           lines: [
-            { label: 'Net sales', value: money(k.net, currency, 'whole') },
-            { label: compare === 'previous' ? 'vs previous' : 'vs last year', value: c ? signedPct(netChange) : 'n/a', tone: (netChange ?? 0) >= 0 ? 'up' : 'down' },
-            { label: 'Orders', value: count(k.orders) },
-            { label: 'Average order', value: money(k.aov, currency, 'exact') },
             ...(k.returns < 0 ? [{ label: 'Returns', value: money(k.returns, currency, 'whole'), tone: 'down' as const }] : []),
             ...(k.margin !== undefined ? [{ label: 'Margin', value: pct(k.margin) }] : []),
             ...(mix[0] ? [{ label: `${mix[0].key.slice(0, 18)} share`, value: pct(mix[0].share, 0) }] : []),
-            ...(top20 !== undefined ? [{ label: 'Top 20% items', value: pct(top20, 0) }] : []),
             { label: 'Unusual weeks', value: String(anomalies.length) },
           ],
-          notes: [
-            ...(latestAnomaly?.drivers[0] ? [`Latest unusual week (${fmtDay(latestAnomaly.end)}) was led by ${latestAnomaly.drivers[0].key}.`] : []),
-            ...(weeks.some((w) => !w.complete) ? ['Weeks cut off by the period edges are drawn as hollow dots and left out of weekly comparisons.'] : []),
-          ],
+          notes,
         }
       : null,
-    `ov|${k?.net}|${c?.net}|${compare}|${anomalies.length}|${currency}`,
+    `ov|${k?.net}|${c?.net}|${compare}|${anomalies.length}|${currency}|${mover?.key}`,
   )
 
   if (!ds || !k) return null
@@ -98,13 +95,11 @@ export function Overview() {
       <header className="mod-head">
         <Headline k={`${k.net}|${filters.from}|${filters.to}|${compare}`}>
           <p className="hl-line">
-            <Fig value={k.net} format={(v) => money(v, currency)} /> from <Fig value={k.orders} format={(v) => count(Math.round(v))} /> orders
-            {hasDates ? `, ${fmtDay(filters.from)} to ${fmtDay(filters.to)}` : ''}.
+            {netChange === undefined
+              ? `Sales${hasDates ? ` from ${fmtDay(filters.from)} to ${fmtDay(filters.to)}` : ''}.`
+              : `Sales are ${netChange >= 0 ? 'up' : 'down'} ${Math.abs(netChange * 100).toFixed(1)}% on the ${cl}.`}
           </p>
-          <p className="hl-line hl-sub">
-            {netChange !== undefined && <Pill value={netChange} label={cl} />}
-            {mix[0] ? <span> {mix[0].key} brings the most, at {pct(mix[0].share, 0)} of sales.</span> : null}
-          </p>
+          {mix[0] && <p className="hl-line hl-sub">{mix[0].key} brings the most, at {pct(mix[0].share, 0)} of sales.</p>}
         </Headline>
         {hasDates && (
           <Segmented
@@ -120,8 +115,6 @@ export function Overview() {
         )}
       </header>
 
-      <Hint id="period">Drag the amber handles on the strip at the bottom to choose any period. Every screen, ticket and receipt updates to match.</Hint>
-
       <div className="deck">
         <Ticket hero label="Net sales" stub={stub(k.net, c?.net)}>
           <Readout value={k.net} currency={currency} size="xl" label={`Net sales ${money(k.net, currency, 'whole')}`} />
@@ -130,16 +123,13 @@ export function Overview() {
         </Ticket>
         <Ticket label="Orders" stub={stub(k.orders, c?.orders)}>
           <Readout value={k.orders} kind="count" size="md" label={`${k.orders} orders`} />
-          <Spark values={sparks.orders} label="Weekly orders, last 26 weeks" />
         </Ticket>
         <Ticket label="Average order" stub={stub(k.aov, c?.aov)}>
           <Readout value={k.aov} currency={currency} size="md" label={`Average order ${money(k.aov, currency, 'exact')}`} />
-          <Spark values={sparks.aov} label="Weekly average order, last 26 weeks" />
         </Ticket>
         {ds.capabilities.customers && (
           <Ticket label="Customers" stub={stub(k.customers, c?.customers)}>
             <Readout value={k.customers} kind="count" size="md" label={`${k.customers} customers`} />
-            <Spark values={sparks.customers} label="Weekly customers, last 26 weeks" />
           </Ticket>
         )}
         {k.margin !== undefined ? (
@@ -153,7 +143,7 @@ export function Overview() {
         <Panel
           glass
           className="panel-scope"
-          title="Week by week"
+          title="Sales week by week"
           aside={
             <span className="legend-inline">
               <i className="sw sw-line" /> This period
@@ -173,41 +163,12 @@ export function Overview() {
           <Scope
             points={weeks.map((w) => ({ end: w.end, y: w.net, partial: !w.complete }))}
             compare={compareSeries}
-            markers={anomalies.map((a) => ({ end: a.end, kind: a.direction, label: `${a.direction === 'spike' ? 'Spike' : 'Dip'}: ${money(a.net, currency)} vs usual ${money(a.baseline, currency)}` }))}
+            markers={[...anomalies].sort((x, y) => Math.abs(y.z) - Math.abs(x.z)).slice(0, 3).map((a) => ({ end: a.end, kind: a.direction, label: `${a.direction === 'spike' ? 'Spike' : 'Dip'}: ${money(a.net, currency)} vs usual ${money(a.baseline, currency)}` }))}
             currency={currency}
             label="Weekly net sales line chart"
           />
         </Panel>
       )}
-
-      <div className="standouts" aria-label="What stands out">
-        {mover && mover.delta !== 0 && (
-          <article className="standout">
-            <span className="standout-kicker">Biggest change</span>
-            <p>
-              <b>{mover.key}</b> {mover.delta > 0 ? 'grew' : 'fell'} by {money(Math.abs(mover.delta), currency)}
-              {mover.pct !== undefined ? ` (${signedPct(mover.pct)})` : ''} against the {cl}.
-            </p>
-          </article>
-        )}
-        {latestAnomaly && (
-          <article className="standout">
-            <span className="standout-kicker">Unusual week</span>
-            <p>
-              The week ending <b>{fmtDay(latestAnomaly.end)}</b> sold {money(latestAnomaly.net, currency)}, against a usual {money(latestAnomaly.baseline, currency)}
-              {latestAnomaly.drivers[0] ? `, mostly ${latestAnomaly.drivers[0].key}` : ''}.
-            </p>
-          </article>
-        )}
-        {top20 !== undefined && (
-          <article className="standout">
-            <span className="standout-kicker">Few items, most sales</span>
-            <p>
-              The top 20% of products bring <b>{pct(top20, 0)}</b> of sales, so their stock matters most.
-            </p>
-          </article>
-        )}
-      </div>
 
       <Details>
         <div className="split">

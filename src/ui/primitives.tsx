@@ -110,9 +110,9 @@ export function Barcode({ seed, width = 180, height = 34 }: { seed: string; widt
   )
 }
 
-export function Panel({ title, aside, children, className = '', glass = false }: { title?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string; glass?: boolean }) {
+export function Panel({ title, aside, children, className = '', glass = false, bare = false }: { title?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string; glass?: boolean; bare?: boolean }) {
   return (
-    <section className={`panel ${glass ? 'panel-glass' : 'panel-paper'} ${className}`}>
+    <section className={`panel ${bare ? 'panel-bare' : glass ? 'panel-glass' : 'panel-paper'} ${className}`}>
       {(title || aside) && (
         <header className="panel-head">
           {title && <h3>{title}</h3>}
