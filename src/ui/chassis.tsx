@@ -120,60 +120,6 @@ export function FilterChips({ onOpen }: { onOpen: () => void }) {
   )
 }
 
-function ShortcutsButton() {
-  const [open, setOpen] = useState(false)
-  const box = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const toggle = () => setOpen((v) => !v)
-    addEventListener('retailai-keys', toggle)
-    return () => removeEventListener('retailai-keys', toggle)
-  }, [])
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    const onAway = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
-    addEventListener('keydown', onKey)
-    addEventListener('pointerdown', onAway)
-    return () => {
-      removeEventListener('keydown', onKey)
-      removeEventListener('pointerdown', onAway)
-    }
-  }, [open])
-  const rows: [string, string][] = [
-    ['1 to 6', 'Switch screen'],
-    ['F', 'Filter the data'],
-    ['U', 'Open a file'],
-    ['P', 'Report'],
-    ['Esc', 'Close a panel or undo a pick'],
-    ['?', 'Show these shortcuts'],
-  ]
-  return (
-    <div className="keys-wrap" ref={box}>
-      <button type="button" className="btn btn-metal btn-icon" aria-expanded={open} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={() => setOpen((v) => !v)}>
-        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
-          <rect x="2" y="5" width="16" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-          <path d="M5 8h1m2.5 0h1m2.5 0h1m2.5 0h-.01M5 11h1m3 0h4m3 0h-.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-      </button>
-      {open && (
-        <div className="keys-pop" role="dialog" aria-label="Keyboard shortcuts">
-          <p className="keys-title">Keyboard shortcuts</p>
-          <dl>
-            {rows.map(([k, v]) => (
-              <div key={k}>
-                <dt>
-                  <kbd>{k}</kbd>
-                </dt>
-                <dd>{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      )}
-    </div>
-  )
-}
-
 export function Utilities({ onUpload }: { onUpload: () => void }) {
   const { setReport, report, theme, setTheme } = useApp()
   return (
@@ -195,7 +141,6 @@ export function Utilities({ onUpload }: { onUpload: () => void }) {
           {theme === 'light' ? <path d="M13.5 3.5a7 7 0 1 0 3 9.6A6 6 0 0 1 13.5 3.5Z" fill="currentColor" /> : <circle cx="10" cy="10" r="4.5" fill="currentColor" />}
         </svg>
       </button>
-      <ShortcutsButton />
     </div>
   )
 }
@@ -211,7 +156,6 @@ export function useShortcuts(handlers: { filters: () => void; upload: () => void
       if (e.key === 'f' || e.key === 'F') handlers.filters()
       if (e.key === 'u' || e.key === 'U') handlers.upload()
       if (e.key === 'p' || e.key === 'P') setReport(!report)
-      if (e.key === '?') dispatchEvent(new CustomEvent('retailai-keys'))
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -377,30 +321,45 @@ export function TuningBand() {
     else commit(filters.from, Math.min(max, Math.max(filters.to + delta, filters.from + 6)))
   }
 
-  const lastYear = yearOf(max)
-  const presets = [
-    { label: 'Last 4 weeks', from: Math.max(min, max - 27), to: max },
-    { label: 'Last 13 weeks', from: Math.max(min, max - 90), to: max },
-    { label: 'Last 52 weeks', from: Math.max(min, max - 363), to: max },
-    { label: `${lastYear} so far`, from: Math.max(min, yearStart(lastYear)), to: max },
-    { label: 'Everything', from: min, to: max },
-  ]
-  const onPreset = presets.findIndex((q) => q.from === filters.from && q.to === filters.to)
+  // One control for recent periods: "Last [n] weeks", with every week count the data covers.
+  const totalWeeks = Math.max(1, Math.floor((max - min + 1) / 7))
+  const isAll = filters.from === min && filters.to === max
+  const span = filters.to - filters.from + 1
+  const lastN = !isAll && filters.to === max && span % 7 === 0 && span / 7 <= totalWeeks ? span / 7 : null
+  const isCustom = !isAll && lastN === null
 
   return (
     <div className="tuning">
       <div className="tuning-presets" role="group" aria-label="Choose a period">
-        {presets.map((p, i) => (
-          <button key={p.label} type="button" className={i === onPreset ? 'on' : ''} aria-pressed={i === onPreset} onClick={() => commit(p.from, p.to)}>
-            {p.label}
-          </button>
-        ))}
-        <button type="button" className={`tuning-custom ${onPreset < 0 ? 'on' : ''}`} aria-expanded={custom} aria-haspopup="dialog" onClick={() => setCustom((v) => !v)}>
+        <label className={`tuning-last ${lastN ? 'on' : ''}`}>
+          <span>Last</span>
+          <select
+            id="period-last-weeks"
+            value={lastN ?? ''}
+            onChange={(e) => {
+              const n = Number(e.target.value)
+              if (n) commit(max - n * 7 + 1, max)
+            }}
+            aria-label="Number of recent weeks to show"
+          >
+            <option value="" disabled>
+              {' '}
+            </option>
+            {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <span>{lastN === 1 ? 'week' : 'weeks'}</span>
+        </label>
+        <button type="button" className={isAll ? 'on' : ''} aria-pressed={isAll} onClick={() => commit(min, max)}>
+          Everything
+        </button>
+        <button type="button" className={`tuning-custom ${isCustom ? 'on' : ''}`} aria-expanded={custom} aria-haspopup="dialog" onClick={() => setCustom((v) => !v)}>
           <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden>
             <rect x="1.5" y="3" width="13" height="11.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
             <path d="M1.5 6.5h13M5 1.5v3M11 1.5v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
-          {onPreset < 0 ? rangeLabel(filters.from, filters.to) : 'Custom dates'}
+          {isCustom ? rangeLabel(filters.from, filters.to) : 'Custom dates'}
         </button>
       </div>
       <div className="tuning-dial" ref={ref} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerDown={onTrack} title="Drag an edge to change the dates, drag the lit window to slide it, or click anywhere on the timeline to move there">
@@ -472,14 +431,10 @@ export function TuningBand() {
 function CustomPeriod({ min, max, from, to, years, onApply, onClose }: { min: number; max: number; from: number; to: number; years: { yr: number; from: number; to: number }[]; onApply: (from: number, to: number) => void; onClose: () => void }) {
   const [a, setA] = useState(dayToISO(from))
   const [b, setB] = useState(dayToISO(to))
-  const [weeks, setWeeks] = useState(String(Math.max(1, Math.round((to - from + 1) / 7))))
   const box = useRef<HTMLDivElement>(null)
-  const totalWeeks = Math.max(1, Math.floor((max - min + 1) / 7))
   const fa = isoToDay(a)
   const fb = isoToDay(b)
   const problem = !Number.isFinite(fa) || !Number.isFinite(fb) ? 'Enter both dates.' : fa > fb ? 'The start date needs to be on or before the end date.' : fa < min || fb > max ? `Your data runs from ${fmtDay(min)} to ${fmtDay(max)}.` : null
-  const n = Math.round(Number(weeks))
-  const weeksOk = Number.isFinite(n) && n >= 1 && n <= totalWeeks
 
   useEffect(() => {
     box.current?.querySelector('input')?.focus()
@@ -521,18 +476,6 @@ function CustomPeriod({ min, max, from, to, years, onApply, onClose }: { min: nu
         <button type="submit" className="btn btn-sticker btn-sm" disabled={!!problem}>Show these dates</button>
       </form>
       {problem && <p className="pp-problem">{problem}</p>}
-      <form
-        className="pp-weeks"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (weeksOk) onApply(max - n * 7 + 1, max)
-        }}
-      >
-        <span>Or the last</span>
-        <input id="period-weeks" type="number" className="field" min={1} max={totalWeeks} value={weeks} onChange={(e) => setWeeks(e.target.value)} aria-label="Number of weeks" />
-        <span>weeks</span>
-        <button type="submit" className="btn btn-ghost btn-sm" disabled={!weeksOk}>Show</button>
-      </form>
       <div className="pp-years" role="group" aria-label="A whole year">
         <span>Or a whole year</span>
         {years.map((yr) => (
