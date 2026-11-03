@@ -4,6 +4,8 @@
 
 **Open a sales export and get trends, forecasts with error bands, customer segments and product pairings, all calculated in your browser.**
 
+**[Open the live app](https://siobhangoh.github.io/RetailAI-Adaptive-Sales-Intelligence/)**
+
 RetailAI reads a CSV or Excel file of orders, works out what each column means, and turns it into six screens. The screens are order tickets hanging on a rail, and each one prints its own receipt of notes. Nothing is uploaded: the file stays in the browser tab, so the app can be hosted as a plain static site that never sleeps.
 
 Three sample stores are built in, each labelled for what it is: a fictional US office-supplies store, a **real** UK online gift shop, and a **synthetic** Malaysian grocery chain priced in RM. Switch between them from the store name at the top.
@@ -158,7 +160,7 @@ research/         the original Python pipeline and tests, kept to reproduce arch
 
 - **Samples:** two more sample stores, so features the Superstore file can't show (returns, units, margins, discounts, real baskets, Malaysian geography and festivals) are visible straight away.
 
-Still open: confirming the Superstore sample's licence, checking Kedai Amber's hand-entered festival dates against the official gazette, and turning on GitHub Pages or Cloudflare Pages for the live link.
+Still open: confirming the Superstore sample's licence, checking Kedai Amber's hand-entered festival dates against the official gazette.
 
 ---
 
