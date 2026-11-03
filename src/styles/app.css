@@ -5090,7 +5090,7 @@ button.who-row.on::after {
   width: min(470px, calc(100vw - 32px));
   max-height: min(640px, calc(100dvh - var(--fd-top, 140px) - 16px));
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   border-radius: 24px;
   color: var(--chassis-ink);
   background: linear-gradient(150deg, var(--lg-sheen), transparent 32%), linear-gradient(color-mix(in srgb, var(--paper) 78%, transparent), color-mix(in srgb, var(--paper) 78%, transparent));
@@ -5269,4 +5269,27 @@ button.who-row.on::after {
   font-size: 14px;
   font-weight: 650;
   font-stretch: 100%;
+}
+
+/* no title: the dropdown opens straight onto the groups; actions sit in a footer */
+.fd-body {
+  padding-top: 12px;
+}
+.fd-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px 14px 20px;
+  border-top: 1px solid color-mix(in srgb, var(--chassis-ink) 10%, transparent);
+}
+.fd-foot p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--chassis-dim);
+}
+@media (max-width: 600px) {
+  .fd-foot {
+    flex-wrap: wrap;
+  }
 }

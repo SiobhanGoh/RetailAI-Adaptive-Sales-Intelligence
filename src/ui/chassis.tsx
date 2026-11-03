@@ -576,16 +576,6 @@ export function FilterDrop({ onClose }: { onClose: () => void }) {
     <>
       <div className="fd-backdrop" aria-hidden onClick={onClose} />
       <div className="filterdrop" ref={box} role="dialog" aria-label="Filters" style={pos ? ({ '--fd-top': `${pos.top}px`, '--fd-right': `${pos.right}px` } as React.CSSProperties) : undefined}>
-        <header className="fd-head">
-          <div>
-            <h2>Filters</h2>
-            <p>{plural(rowsAllDates.length, 'row')} match{rowsAllDates.length === 1 ? 'es' : ''}, before the date range is applied.</p>
-          </div>
-          <div className="fd-actions">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => pickDims({})} disabled={!picked}>Clear all</button>
-            <button type="button" className="btn btn-sticker btn-sm" onClick={onClose}>Done</button>
-          </div>
-        </header>
         <div className="fd-body">
           {DIMENSIONS.filter((d) => options[d]).map((d) => {
             const all = options[d]!
@@ -635,6 +625,15 @@ export function FilterDrop({ onClose }: { onClose: () => void }) {
             )
           })}
         </div>
+        <footer className="fd-foot">
+          <p>
+            {plural(rowsAllDates.length, 'row')} match{rowsAllDates.length === 1 ? 'es' : ''}, before the date range is applied.
+          </p>
+          <div className="fd-actions">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => pickDims({})} disabled={!picked}>Clear all</button>
+            <button type="button" className="btn btn-sticker btn-sm" onClick={onClose}>Done</button>
+          </div>
+        </footer>
       </div>
     </>,
     document.body,
