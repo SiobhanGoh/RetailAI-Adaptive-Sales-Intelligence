@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
 import { Details, Empty, Fig, Headline, Panel, Segmented } from '../ui/primitives'
-import { Heat, Pareto, TagBars } from '../charts/misc'
+import { Heat, Pareto, ShipBars, TagBars } from '../charts/misc'
 import { breakdown, filterRows, paretoCurve, rhythm, shareOfTop, shippingDays } from '../engine/aggregate'
 import { DIMENSION_LABEL, DIMENSION_PLURAL, type Dimension } from '../engine/types'
 import { downloadCsv, money, pct, shorten } from '../format'
@@ -128,7 +128,7 @@ export function Sales() {
       </header>
 
       <Panel
-        title={shown.length > 12 ? `Top 12 of ${shown.length.toLocaleString('en')} ${unit}` : `All ${shown.length} ${unit}`}
+        title={shown.length > 20 ? `Top 20 of ${shown.length.toLocaleString('en')} ${unit}` : `All ${shown.length} ${unit}`}
         aside={
           <span className="row-actions">
             {active !== 'product' &&
@@ -149,7 +149,7 @@ export function Sales() {
           </span>
         }
       >
-        <TagBars items={shown} currency={currency} max={12} onPick={active === 'product' ? undefined : pickFilter} picked={picked} />
+        <TagBars items={shown} currency={currency} max={20} onPick={active === 'product' ? undefined : pickFilter} picked={picked} />
       </Panel>
 
       <Details label="Show when and how concentrated">
@@ -157,15 +157,22 @@ export function Sales() {
           {grid && (
             <Panel glass title="Average daily sales by weekday and month" className="panel-rhythm">
               <div className="heat-quiet">
-                <Heat cells={grid.grid} rows={DAYS} cols={MONTHS.map((m) => m[0])} format={(v) => money(v, currency)} label="Average daily sales by weekday and month" />
+                <Heat
+                  cells={grid.grid}
+                  rows={DAYS}
+                  cols={MONTHS.map((m) => m[0])}
+                  format={(v) => money(v, currency)}
+                  label="Average daily sales by weekday and month"
+                  tip={(i, j, v) => ({ title: `${DAY_NAMES[i]}s in ${MONTH_NAMES[j]}`, value: v === null ? 'No sales on these days yet' : `${money(v, currency)} on an average day` })}
+                />
               </div>
-              <p className="fine">Brighter means more sales on an average day. Averaged over days with at least one sale.</p>
+              <p className="fine">Brighter means more sales on an average day. Point at a square for the amount.</p>
             </Panel>
           )}
           {curve.length > 10 && (
             <Panel glass title="Sales concentration across products" className="panel-pareto">
-              <Pareto curve={curve} label="Cumulative share of sales by ranked products" />
-              <p className="fine">The top 20% of products bring {pct(top20, 0)} of sales. The dashed line is what an even spread would look like.</p>
+              <Pareto curve={curve} count={products.length} label="Cumulative share of sales by ranked products" />
+              <p className="fine">The top 20% of products bring {pct(top20, 0)} of sales. The dashed line is what an even spread would look like. Point along the curve to read any share.</p>
             </Panel>
           )}
           {profitable.length > 0 && (
@@ -185,11 +192,18 @@ export function Sales() {
             </Panel>
           )}
           {ship && (
-            <Panel title="Time to ship" className="panel-ship">
-              <p className="big-stat">
-                <b>{ship.median}</b> days median
-              </p>
-              <p className="fine">Nine in ten orders shipped within {ship.p90} days of being placed.</p>
+            <Panel title="How long orders take to ship" className="panel-ship">
+              <div className="ship">
+                <div className="ship-lead">
+                  <p className="big-stat">
+                    <b>{ship.median}</b> {ship.median === 1 ? 'day' : 'days'}
+                  </p>
+                  <p className="quiet">
+                    Half of {ship.orders.toLocaleString('en')} orders ship within {ship.median} {ship.median === 1 ? 'day' : 'days'} of being placed, and nine in ten within {ship.p90}.
+                  </p>
+                </div>
+                <ShipBars counts={ship.counts} orders={ship.orders} />
+              </div>
             </Panel>
           )}
         </div>

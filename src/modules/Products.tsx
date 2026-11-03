@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { PairWeb } from '../charts/misc'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
 import { Details, Empty, Fig, Headline, Panel } from '../ui/primitives'
@@ -24,19 +25,31 @@ export function Products() {
   const { ds, rows, currency, sampleId } = useApp()
   const idx = useMemo(() => (ds?.capabilities.products ? buildIndex(rows) : null), [rows, ds])
   const [query, setQuery] = useState('')
+  const [cat, setCat] = useState('')
+  const [sub, setSub] = useState('')
+  // Narrowing by category and sub-category shortens the name list and jumps to that group's best seller.
+  const cats = useMemo(() => (idx ? [...idx.byCat.keys()].sort() : []), [idx])
+  const subs = useMemo(() => {
+    if (!idx) return []
+    const set = new Set<string>()
+    for (const p of idx.products.values()) if (p.subcategory && (!cat || p.category === cat)) set.add(p.subcategory)
+    return [...set].sort()
+  }, [idx, cat])
+  const pool = useMemo(() => (idx ? [...idx.products.values()].filter((p) => (!cat || p.category === cat) && (!sub || p.subcategory === sub)).sort((a, b) => b.net - a.net) : []), [idx, cat, sub])
   const byName = useMemo(() => {
     const m = new Map<string, string>()
-    if (idx) for (const p of idx.products.values()) if (!m.has(p.name)) m.set(p.name, p.id)
+    for (const p of pool) if (!m.has(p.name)) m.set(p.name, p.id)
     return m
-  }, [idx])
-  const seed = idx ? (byName.get(query) ?? (idx.products.has(query) ? query : idx.popular[0])) : undefined
+  }, [pool])
+  const seed = idx ? (byName.get(query) ?? (idx.products.has(query) ? query : (cat || sub) && pool[0] ? pool[0].id : idx.popular[0])) : undefined
+  const [hoverPair, setHoverPair] = useState<number | null>(null)
   const info = seed && idx ? idx.products.get(seed) : undefined
 
   const together = useMemo(() => (idx && seed ? togetherWith(idx, [seed], new Set([seed])).slice(0, 5) : []), [idx, seed])
   const sameSub = useMemo(() => (idx && seed ? suggestFor(idx, seed, 5, ['subcategory']) : []), [idx, seed])
   const similar = useMemo(() => (idx && seed ? similarProducts(idx, seed, 5) : []), [idx, seed])
   const pairs = useMemo(() => (idx ? topPairs(idx, 8) : []), [idx])
-  const affinity = useMemo(() => (ds?.capabilities.orders ? subcategoryAffinity(rows, 8) : []), [rows, ds])
+  const affinity = useMemo(() => (ds?.capabilities.orders ? subcategoryAffinity(rows, 7) : []), [rows, ds])
   const multiShare = useMemo(() => {
     if (!idx) return 0
     const sizes = new Map<string, Set<string>>()
@@ -78,15 +91,54 @@ export function Products() {
             </>
           ) : null}
         </Headline>
-        <label className="select-wrap select-wide">
-          <span>Look up any product</span>
-          <input className="field" list="product-list" value={query} placeholder="Type a product name" onChange={(e) => setQuery(e.target.value)} />
-          <datalist id="product-list">
-            {[...byName.keys()].slice(0, 3000).map((n) => (
-              <option key={n} value={n} />
-            ))}
-          </datalist>
-        </label>
+        <div className="finder">
+          <label className="select-wrap">
+            <span>Look up any product</span>
+            <input className="field" list="product-list" value={query} placeholder={cat || sub ? `Type a name, ${plural(pool.length, 'product')} in ${sub || cat}` : 'Type a product name'} onChange={(e) => setQuery(e.target.value)} />
+            <datalist id="product-list">
+              {[...byName.keys()].slice(0, 3000).map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
+          </label>
+          {cats.length > 0 && (
+            <div className="finder-filters">
+              <div className="finder-cats" role="group" aria-label="Narrow by category">
+                {['', ...cats].map((c) => (
+                  <button
+                    key={c || 'all'}
+                    type="button"
+                    className={`chip ${cat === c ? 'on' : ''}`}
+                    aria-pressed={cat === c}
+                    onClick={() => {
+                      setCat(c)
+                      setSub('')
+                      setQuery('')
+                    }}
+                  >
+                    {c || 'All categories'}
+                  </button>
+                ))}
+              </div>
+              {subs.length > 1 && (
+                <select
+                  className="field field-sm"
+                  aria-label="Narrow by sub-category"
+                  value={sub}
+                  onChange={(e) => {
+                    setSub(e.target.value)
+                    setQuery('')
+                  }}
+                >
+                  <option value="">Any sub-category</option>
+                  {subs.map((x) => (
+                    <option key={x} value={x}>{x}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+        </div>
       </header>
 
       <div className="trio">
@@ -101,55 +153,71 @@ export function Products() {
         </Panel>
       </div>
 
-      <Details label="Show pairs that sell together">
-      <div className="split">
-        <Panel
-          title="Item pairs seen more than once"
-          aside={
-            pairs.length > 0 && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => downloadCsv('item-pairs', topPairs(idx, 10_000).map((p) => ({ item_a: idx.products.get(p.a)!.name, item_b: idx.products.get(p.b)!.name, orders_together: p.together, lift: p.lift.toFixed(2) })))}>
-                Download CSV
-              </button>
-            )
-          }
-        >
-          {pairs.length ? (
-            <ul className="pairs">
-              {pairs.map((p) => (
-                <li key={`${p.a}${p.b}`}>
-                  <span>{idx.products.get(p.a)!.name}</span>
-                  <span className="pair-plus" aria-hidden>+</span>
-                  <span>{idx.products.get(p.b)!.name}</span>
-                  <b>{p.together}×</b>
-                </li>
-              ))}
-            </ul>
+      <Details label="Show what sells together">
+        <Panel title="What sells together" className="panel-together">
+          {affinity.length > 0 ? (
+            <div className="together">
+              <PairWeb pairs={affinity} active={hoverPair} onHover={setHoverPair} label="Sub-categories joined by how often they share an order" />
+              <div className="together-list">
+                <div className="link-row link-head" aria-hidden>
+                  <span>Sub-categories bought in the same order</span>
+                  <span>vs chance</span>
+                </div>
+                <ol className="links">
+                  {affinity.map((p, i) => (
+                    <li key={`${p.a}${p.b}`} className={`link-row ${hoverPair === i ? 'on' : ''}`} onPointerEnter={() => setHoverPair(i)} onPointerLeave={() => setHoverPair(null)}>
+                      <span className="link-pair">
+                        <span className="link-pill">{p.a}</span>
+                        <span className="link-wire" aria-hidden>
+                          <em>{plural(p.together, 'order')}</em>
+                        </span>
+                        <span className="link-pill">{p.b}</span>
+                      </span>
+                      <b className="link-lift" title="How many times more often they share an order than if people bought them independently">{p.lift.toFixed(1)}×</b>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
           ) : (
-            <p className="quiet">No pair of items appears together in more than one order. Baskets in this view are too varied for item-level pairing; the sub-category view is more useful.</p>
+            <p className="quiet">No two sub-categories in this view share orders more often than chance would suggest. Widen the period or clear filters to find pairs.</p>
           )}
-        </Panel>
-        {affinity.length > 0 && (
-          <Panel title="Sub-categories that travel together">
-            <ul className="pairs">
-              {affinity.map((p) => (
-                <li key={`${p.a}${p.b}`}>
-                  <span>{p.a}</span>
-                  <span className="pair-plus" aria-hidden>+</span>
-                  <span>{p.b}</span>
-                  <b title="Lift: how much more often they share an order than chance">{p.lift.toFixed(2)}×</b>
-                </li>
-              ))}
-            </ul>
-            <p className="fine">Lift above 1 means the pair shares orders more often than if purchases were independent. Only pairs seen in at least five orders are listed.</p>
-          </Panel>
-        )}
-      </div>
 
-      {sampleId === 'superstore' && (
-        <p className="note">
-          On later orders in this sample store, guessing the other items in a basket from one item worked {evalProducts.popular.hit_rate_at_5_pct}% of the time with plain best sellers, {evalProducts['together+popular'].hit_rate_at_5_pct}% with bought-together and {evalProducts.similar.hit_rate_at_5_pct}% with similar descriptions. Baskets here rarely repeat, so use these lists for browsing ideas rather than as predictions.
-        </p>
-      )}
+          {pairs.length > 0 && (
+            <div className="together-items">
+              <div className="link-row link-head" aria-hidden>
+                <span>Single items bought together more than once</span>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => downloadCsv('item-pairs', topPairs(idx, 10_000).map((p) => ({ item_a: idx.products.get(p.a)!.name, item_b: idx.products.get(p.b)!.name, orders_together: p.together, lift: p.lift.toFixed(2) })))}>
+                  Download CSV
+                </button>
+              </div>
+              <ol className="links">
+                {pairs.map((p) => (
+                  <li key={`${p.a}${p.b}`} className="link-row">
+                    <span className="link-pair">
+                      <span className="link-pill">{shorten(idx.products.get(p.a)!.name, 34)}</span>
+                      <span className="link-wire" aria-hidden>
+                        <em>{plural(p.together, 'order')}</em>
+                      </span>
+                      <span className="link-pill">{shorten(idx.products.get(p.b)!.name, 34)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          <footer className="together-foot">
+            {pairs.length === 0 && <p className="fine">No two single items appear together in more than one order here, so pairs are shown by sub-category.</p>}
+            {sampleId === 'superstore' ? (
+              <p className="fine">
+                How well this works here: on later orders, bought-together guessed another item in the basket {evalProducts['together+popular'].hit_rate_at_5_pct}% of the time, against {evalProducts.popular.hit_rate_at_5_pct}% for plain best sellers. Baskets rarely repeat in this store, so use pairs as ideas to browse, not predictions.
+              </p>
+            ) : (
+              <p className="fine">2× means two sub-categories land in the same order twice as often as they would if people picked them independently.</p>
+            )}
+          </footer>
+        </Panel>
       </Details>
     </div>
   )

@@ -64,73 +64,87 @@ export function Customers() {
         </Headline>
       </header>
 
-      <div className="cust-layout">
-        <Panel title="Segments" className="panel-segs">
-          <div className="segs" role="tablist" aria-label="Customer segments">
-            {segments.map((s) => (
-              <button key={s.id} type="button" role="tab" aria-selected={s.id === seg} className={`seg seg-${s.id} ${s.id === seg ? 'on' : ''}`} onClick={() => setSeg(s.id)}>
-                <span className="seg-name">{s.label}</span>
-                <span className="seg-count">{s.customers}</span>
-                <span className="seg-share">{pct(s.share, 0)} of sales</span>
-              </button>
-            ))}
-          </div>
-          <div className="seg-detail" role="tabpanel">
-            <p>
-              <strong>{picked.rule}.</strong> {picked.action}
-            </p>
-            {picked.members.length ? (
-              <>
-                <table className="table table-compact">
-                  <thead>
-                    <tr>
-                      <th scope="col">Customer</th>
-                      <th scope="col" className="num">Orders</th>
-                      <th scope="col" className="num">Sales</th>
-                      <th scope="col" className="num">Last order</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {picked.members.slice(0, 6).map((c) => (
-                      <tr key={c.id}>
-                        <td>
-                          <button type="button" className="linkish" onClick={() => setWho(c.id)}>{c.name ?? c.id}</button>
-                        </td>
-                        <td className="num">{c.orders}</td>
-                        <td className="num">{money(c.net, currency)}</td>
-                        <td className="num">{fmtDay(c.lastDay)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => downloadCsv(`customers-${picked.id}`, picked.members.map((c) => ({ customer_id: c.id, name: c.name ?? '', orders: c.orders, net_sales: c.net.toFixed(2), first_order: new Date(c.firstDay * 86_400_000).toISOString().slice(0, 10), last_order: new Date(c.lastDay * 86_400_000).toISOString().slice(0, 10), recency_score: c.r, frequency_score: c.f, monetary_score: c.m })))}>
-                  Download all {picked.members.length}
-                </button>
-              </>
-            ) : (
-              <p className="quiet">Nobody falls in this segment for the current view.</p>
-            )}
-          </div>
-        </Panel>
+      {/* One flow, left to right: pick a segment, then a customer in it, then see what to offer them. */}
+      <div className="seg-strip" role="tablist" aria-label="Customer segments">
+        {segments.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            role="tab"
+            aria-selected={s.id === seg}
+            className={`seg seg-${s.id} ${s.id === seg ? 'on' : ''}`}
+            onClick={() => {
+              setSeg(s.id)
+              setWho('')
+            }}
+          >
+            <span className="seg-name">{s.label}</span>
+            <span className="seg-count">{count(s.customers)}</span>
+            <span className="seg-share">{pct(s.share, 0)} of sales</span>
+            <span className="seg-bar" aria-hidden>
+              <i style={{ width: `${Math.min(100, s.share * 100)}%` }} />
+            </span>
+          </button>
+        ))}
+      </div>
 
-        <Panel bare title="Next purchase ideas" className="panel-next">
-          <label className="select-wrap">
-            <span>Customer</span>
-            <input className="field" list="customer-list" value={who} placeholder={person?.name ?? "Type a name or ID"} onChange={(e) => setWho(e.target.value)} />
+      <section className="cust-flow" role="tabpanel" aria-label={`${picked.label} customers and what to offer them`}>
+        <div className="cust-pane">
+          <header className="cust-pane-head">
+            <h3>{picked.label}</h3>
+            <p className="quiet">
+              {picked.rule}. {picked.action}
+            </p>
+          </header>
+          <label className="cust-find">
+            <span className="sr-only">Find any customer</span>
+            <input className="field" list="customer-list" value={who} placeholder="Find any customer by name or ID" onChange={(e) => setWho(e.target.value)} />
             <datalist id="customer-list">
               {stats.slice(0, 2000).map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </datalist>
           </label>
+          {picked.members.length ? (
+            <>
+              <div className="who-list" role="list">
+                <div className="who-row who-head" aria-hidden>
+                  <span className="who-name">Customer</span>
+                  <span>Orders</span>
+                  <span>Sales</span>
+                  <span>Last order</span>
+                </div>
+                {picked.members.slice(0, 8).map((c) => (
+                  <button key={c.id} type="button" role="listitem" className={`who-row ${person?.id === c.id ? 'on' : ''}`} aria-current={person?.id === c.id} onClick={() => setWho(c.id)}>
+                    <span className="who-name">{c.name ?? c.id}</span>
+                    <span>{c.orders}</span>
+                    <span>{money(c.net, currency)}</span>
+                    <span>{fmtDay(c.lastDay)}</span>
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => downloadCsv(`customers-${picked.id}`, picked.members.map((c) => ({ customer_id: c.id, name: c.name ?? '', orders: c.orders, net_sales: c.net.toFixed(2), first_order: new Date(c.firstDay * 86_400_000).toISOString().slice(0, 10), last_order: new Date(c.lastDay * 86_400_000).toISOString().slice(0, 10), recency_score: c.r, frequency_score: c.f, monetary_score: c.m })))}>
+                Download all {count(picked.members.length)} {picked.label.toLowerCase()}
+              </button>
+            </>
+          ) : (
+            <p className="quiet">Nobody falls in this segment for the current view.</p>
+          )}
+        </div>
+
+        <div className="cust-pane cust-ideas" aria-live="polite">
           {person ? (
             <>
-              <p className="quiet">
-                {person.name ?? person.id}: {plural(person.orders, 'order')}, {money(person.net, currency)}, last bought {fmtDay(person.lastDay)}. Segment: {segments.find((s) => s.id === person.segment)!.label}.
-              </p>
-              <ol className="tags">
-                {ideas.map((s) => (
-                  <li key={s.product} className="tag">
+              <header className="cust-pane-head">
+                <h3>What to offer {person.name ?? person.id}</h3>
+                <p className="quiet">
+                  {plural(person.orders, 'order')}, {money(person.net, currency)} in total, last bought {fmtDay(person.lastDay)}.
+                  {person.segment !== seg ? ` In ${segments.find((s) => s.id === person.segment)!.label}.` : ''}
+                </p>
+              </header>
+              <ol className="tags" key={person.id}>
+                {ideas.map((s, i) => (
+                  <li key={s.product} className="tag" style={{ ['--n' as string]: String(i) }}>
                     <span className="tag-name">{s.name}</span>
                     <span className="tag-why">{REASON_LABEL[s.reason]}</span>
                   </li>
@@ -138,15 +152,15 @@ export function Customers() {
               </ol>
             </>
           ) : (
-            <p className="quiet">Pick a customer to see items they have not bought yet, starting with best sellers in the sub-categories they buy most.</p>
+            <p className="quiet">Pick a customer on the left to see items they have not bought yet, starting with best sellers in the sub-categories they buy most.</p>
           )}
           {sampleId === 'superstore' && (
             <p className="fine">
               Tested on this sample store: these ideas matched a later purchase for {custEval.test.metrics[custEval.chosen_on_validation].hit_rate_at_5_pct}% of customers, below the {custEval.test.metrics.popular.hit_rate_at_5_pct}% for simply showing best sellers. Treat them as conversation starters.
             </p>
           )}
-        </Panel>
-      </div>
+        </div>
+      </section>
 
       <Details label="Show the recency grid and retention">
         <div className="cust-layout">

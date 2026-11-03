@@ -258,7 +258,8 @@ export function subcategoryAffinity(rows: Row[], limit = 10): { a: string; b: st
       const [a, b] = key.split('\u0001')
       return { a, b, together: c, lift: (c / N) / ((single.get(a)! / N) * (single.get(b)! / N)) }
     })
-    .filter((p) => p.together >= 5)
+    // Only pairs that share orders more often than chance count as travelling together.
+    .filter((p) => p.together >= 5 && p.lift > 1)
     .sort((x, y) => y.lift - x.lift)
     .slice(0, limit)
 }

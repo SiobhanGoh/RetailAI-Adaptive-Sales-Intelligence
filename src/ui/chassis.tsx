@@ -9,7 +9,7 @@ import { Barcode, reducedMotion, useSize } from './primitives'
 import { DIMENSIONS, DIMENSION_LABEL, type Dimension } from '../engine/types'
 import { fmtDay, fmtMonth, plural, rangeLabel } from '../format'
 import { parseCsvText, tableFromMatrix } from '../engine/load'
-import { weekday } from '../engine/values'
+import { dayToISO, weekday } from '../engine/values'
 
 // ------------------------------------------------------------------ status chips
 
@@ -182,12 +182,17 @@ export function ReceiptPrinter() {
 
 // ------------------------------------------------------------------ tuning band (date range)
 
+const isoToDay = (iso: string) => Math.floor(Date.parse(`${iso}T00:00:00Z`) / 86_400_000)
+const yearStart = (yr: number) => Math.floor(Date.UTC(yr, 0, 1) / 86_400_000)
+const yearOf = (d: number) => new Date(d * 86_400_000).getUTCFullYear()
+
 export function TuningBand() {
   const { ds, filters, setFilters, weeksAll } = useApp()
   const [ref, { w }, dialRef] = useSize<HTMLDivElement>()
   const drag = useRef<null | 'from' | 'to' | 'move'>(null)
   const start = useRef({ x: 0, from: 0, to: 0 })
   const [draft, setDraft] = useState<{ from: number; to: number } | null>(null)
+  const [custom, setCustom] = useState(false)
   const width = Math.max(w, 200)
   const H = 64
   const min = ds?.minDay ?? 0
@@ -197,9 +202,9 @@ export function TuningBand() {
 
   const commit = useCallback(
     (from: number, to: number) => {
-      setFilters({ ...filters, from: Math.round(from), to: Math.round(to) })
+      setFilters({ ...filters, from: Math.round(Math.max(min, from)), to: Math.round(Math.min(max, to)) })
     },
-    [filters, setFilters],
+    [filters, setFilters, min, max],
   )
 
   if (!ds || !ds.capabilities.dates) return <div className="tuning tuning-off">Add an order date column to choose a period.</div>
@@ -208,8 +213,9 @@ export function TuningBand() {
   const y = scaleLinear().domain([Math.min(0, ...weeksAll.map((w) => w.net)), yMax]).range([H - 6, 8])
   const spark = area<{ end: number; net: number }>().x((p) => x(p.end - 3)).y0(H - 6).y1((p) => y(p.net)).curve(curveMonotoneX)
 
-  const years: number[] = []
-  for (let yr = new Date(min * 86_400_000).getUTCFullYear() + 1; yr <= new Date(max * 86_400_000).getUTCFullYear(); yr++) years.push(Math.floor(Date.UTC(yr, 0, 1) / 86_400_000))
+  // Every calendar year the data touches, so a year can be picked with one click.
+  const years: { yr: number; from: number; to: number }[] = []
+  for (let yr = yearOf(min); yr <= yearOf(max); yr++) years.push({ yr, from: Math.max(min, yearStart(yr)), to: Math.min(max, yearStart(yr + 1) - 1) })
 
   const toDay = (clientX: number) => {
     const r = (dialRef.current as HTMLDivElement).getBoundingClientRect()
@@ -218,6 +224,7 @@ export function TuningBand() {
 
   const onDown = (which: 'from' | 'to' | 'move') => (e: React.PointerEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
     drag.current = which
     start.current = { x: toDay(e.clientX), from: cur.from, to: cur.to }
@@ -240,6 +247,15 @@ export function TuningBand() {
     drag.current = null
     setDraft(null)
   }
+  // Clicking the timeline outside the window moves the window there, keeping its length.
+  const onTrack = (e: React.PointerEvent) => {
+    if (drag.current) return
+    const d = toDay(e.clientX)
+    const len = filters.to - filters.from
+    let from = d - len / 2
+    from = Math.max(min, Math.min(max - len, from))
+    commit(from, from + len)
+  }
   const onKey = (which: 'from' | 'to') => (e: React.KeyboardEvent) => {
     const step = e.shiftKey ? 28 : 7
     let delta = 0
@@ -251,34 +267,55 @@ export function TuningBand() {
     else commit(filters.from, Math.min(max, Math.max(filters.to + delta, filters.from + 6)))
   }
 
-  const lastYear = new Date(max * 86_400_000).getUTCFullYear()
+  const lastYear = yearOf(max)
   const presets = [
+    { label: 'Last 4 weeks', from: Math.max(min, max - 27), to: max },
     { label: 'Last 13 weeks', from: Math.max(min, max - 90), to: max },
     { label: 'Last 52 weeks', from: Math.max(min, max - 363), to: max },
-    { label: `${lastYear} so far`, from: Math.max(min, Math.floor(Date.UTC(lastYear, 0, 1) / 86_400_000)), to: max },
+    { label: `${lastYear} so far`, from: Math.max(min, yearStart(lastYear)), to: max },
     { label: 'Everything', from: min, to: max },
   ]
+  const onPreset = presets.findIndex((q) => q.from === filters.from && q.to === filters.to)
 
   return (
     <div className="tuning">
-      <div className="tuning-presets" role="group" aria-label="Quick periods">
+      <div className="tuning-presets" role="group" aria-label="Choose a period">
         {presets.map((p, i) => (
-          <button key={p.label} type="button" className={i === presets.findIndex((q) => q.from === filters.from && q.to === filters.to) ? 'on' : ''} onClick={() => commit(p.from, p.to)}>
+          <button key={p.label} type="button" className={i === onPreset ? 'on' : ''} aria-pressed={i === onPreset} onClick={() => commit(p.from, p.to)}>
             {p.label}
           </button>
         ))}
+        <button type="button" className={`tuning-custom ${onPreset < 0 ? 'on' : ''}`} aria-expanded={custom} aria-haspopup="dialog" onClick={() => setCustom((v) => !v)}>
+          <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden>
+            <rect x="1.5" y="3" width="13" height="11.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M1.5 6.5h13M5 1.5v3M11 1.5v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          {onPreset < 0 ? rangeLabel(filters.from, filters.to) : 'Custom dates'}
+        </button>
       </div>
-      <div className="tuning-dial" ref={ref} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+      <div className="tuning-dial" ref={ref} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerDown={onTrack} title="Drag an edge to change the dates, drag the lit window to slide it, or click anywhere on the timeline to move there">
         <svg viewBox={`0 0 ${width} ${H}`} width={width} height={H} aria-hidden>
           <path d={spark(weeksAll) ?? ''} className="tuning-spark" />
-          {years.map((d) => (
-            <g key={d}>
-              <line x1={x(d)} x2={x(d)} y1={4} y2={H - 4} className="tuning-year" />
-              <text x={x(d) + 4} y={14} className="tuning-year-label">{new Date(d * 86_400_000).getUTCFullYear()}</text>
-            </g>
+          {years.slice(1).map((yr) => (
+            <line key={yr.yr} x1={x(yr.from)} x2={x(yr.from)} y1={4} y2={H - 4} className="tuning-year" />
           ))}
           <rect x={x(cur.from)} y={2} width={Math.max(2, x(cur.to) - x(cur.from))} height={H - 4} className="tuning-window" />
         </svg>
+        {years.map((yr) =>
+          x(yr.to) - x(yr.from) > 34 ? (
+            <button
+              key={yr.yr}
+              type="button"
+              className={`tuning-yearbtn ${filters.from === yr.from && filters.to === yr.to ? 'on' : ''}`}
+              style={{ left: x(yr.from) + 3 }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => commit(yr.from, yr.to)}
+              title={`Show all of ${yr.yr}`}
+            >
+              {yr.yr}
+            </button>
+          ) : null,
+        )}
         <div className="tuning-drag" style={{ left: x(cur.from), width: Math.max(2, x(cur.to) - x(cur.from)) }} onPointerDown={onDown('move')} aria-hidden />
         {(['from', 'to'] as const).map((which) => (
           <div
@@ -296,10 +333,91 @@ export function TuningBand() {
             onKeyDown={onKey(which)}
           >
             <span className="tuning-needle" />
-            <span className="tuning-cap">{fmtMonth(Math.round(cur[which]))}</span>
+            <span className="tuning-grip" aria-hidden />
+            <span className="tuning-cap">{draft ? fmtDay(Math.round(cur[which])) : fmtMonth(Math.round(cur[which]))}</span>
           </div>
         ))}
+        <span className="tuning-hint" aria-hidden>Drag the edges or the window</span>
       </div>
+      {custom && <CustomPeriod min={min} max={max} from={filters.from} to={filters.to} years={years} onApply={(f, t) => { commit(f, t); setCustom(false) }} onClose={() => setCustom(false)} />}
+    </div>
+  )
+}
+
+/** Exact dates, a number of recent weeks, or a whole year. */
+function CustomPeriod({ min, max, from, to, years, onApply, onClose }: { min: number; max: number; from: number; to: number; years: { yr: number; from: number; to: number }[]; onApply: (from: number, to: number) => void; onClose: () => void }) {
+  const [a, setA] = useState(dayToISO(from))
+  const [b, setB] = useState(dayToISO(to))
+  const [weeks, setWeeks] = useState(String(Math.max(1, Math.round((to - from + 1) / 7))))
+  const box = useRef<HTMLDivElement>(null)
+  const totalWeeks = Math.max(1, Math.floor((max - min + 1) / 7))
+  const fa = isoToDay(a)
+  const fb = isoToDay(b)
+  const problem = !Number.isFinite(fa) || !Number.isFinite(fb) ? 'Enter both dates.' : fa > fb ? 'The start date needs to be on or before the end date.' : fa < min || fb > max ? `Your data runs from ${fmtDay(min)} to ${fmtDay(max)}.` : null
+  const n = Math.round(Number(weeks))
+  const weeksOk = Number.isFinite(n) && n >= 1 && n <= totalWeeks
+
+  useEffect(() => {
+    box.current?.querySelector('input')?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+    const onAway = (e: PointerEvent) => {
+      const t = e.target as Element
+      if (!box.current?.contains(t) && !t.closest('.tuning-custom')) onClose()
+    }
+    addEventListener('keydown', onKey)
+    addEventListener('pointerdown', onAway)
+    return () => {
+      removeEventListener('keydown', onKey)
+      removeEventListener('pointerdown', onAway)
+    }
+  }, [onClose])
+
+  return (
+    <div className="period-pop" role="dialog" aria-label="Choose dates" ref={box}>
+      <form
+        className="pp-dates"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!problem) onApply(fa, fb)
+        }}
+      >
+        <label>
+          <span>From</span>
+          <input id="period-from" type="date" className="field" min={dayToISO(min)} max={dayToISO(max)} value={a} onChange={(e) => setA(e.target.value)} />
+        </label>
+        <label>
+          <span>To</span>
+          <input id="period-to" type="date" className="field" min={dayToISO(min)} max={dayToISO(max)} value={b} onChange={(e) => setB(e.target.value)} />
+        </label>
+        <button type="submit" className="btn btn-sticker btn-sm" disabled={!!problem}>Show these dates</button>
+      </form>
+      {problem && <p className="pp-problem">{problem}</p>}
+      <form
+        className="pp-weeks"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (weeksOk) onApply(max - n * 7 + 1, max)
+        }}
+      >
+        <span>Or the last</span>
+        <input id="period-weeks" type="number" className="field" min={1} max={totalWeeks} value={weeks} onChange={(e) => setWeeks(e.target.value)} aria-label="Number of weeks" />
+        <span>weeks</span>
+        <button type="submit" className="btn btn-ghost btn-sm" disabled={!weeksOk}>Show</button>
+      </form>
+      <div className="pp-years" role="group" aria-label="A whole year">
+        <span>Or a whole year</span>
+        {years.map((yr) => (
+          <button key={yr.yr} type="button" className={`pp-year ${from === yr.from && to === yr.to ? 'on' : ''}`} onClick={() => onApply(yr.from, yr.to)}>
+            {yr.yr}
+          </button>
+        ))}
+      </div>
+      <p className="fine">Your data runs from {fmtDay(min)} to {fmtDay(max)}.</p>
     </div>
   )
 }

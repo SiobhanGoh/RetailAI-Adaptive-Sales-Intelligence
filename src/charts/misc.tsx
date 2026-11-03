@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { scaleLinear } from 'd3-scale'
 import { line, curveMonotoneX } from 'd3-shape'
 import { useSize } from '../ui/primitives'
@@ -12,7 +12,7 @@ export function TagBars({ items, currency, max = 10, onPick, picked }: { items: 
   const shown = items.filter((s, i) => i < max || picked?.includes(s.key))
   const top = Math.max(1, ...shown.map((s) => s.net))
   return (
-    <ol className={`tagbars ${picked?.length ? 'picking' : ''}`}>
+    <ol className={`tagbars ${picked?.length ? 'picking' : ''} ${shown.length > 8 ? 'tagbars-two' : ''}`} style={{ ['--rows' as string]: String(Math.ceil(shown.length / 2)) }}>
       {shown.map((s, i) => {
         const on = picked?.includes(s.key)
         const body = (
@@ -70,44 +70,96 @@ export function ShareStack({ items, label }: { items: { key: string; share: numb
 }
 
 /** Generic heat grid. `cells[row][col]` with null for "not observable yet". */
-export function Heat({ cells, rows, cols, format, label, max }: { cells: (number | null)[][]; rows: string[]; cols: string[]; format: (v: number) => string; label: string; max?: number }) {
+export function Heat({ cells, rows, cols, format, label, max, tip }: { cells: (number | null)[][]; rows: string[]; cols: string[]; format: (v: number) => string; label: string; max?: number; tip?: (row: number, col: number, v: number | null) => { title: string; value: string } }) {
   const top = max ?? Math.max(1e-9, ...cells.flat().filter((v): v is number => v !== null))
+  const [hover, setHover] = useState<{ i: number; j: number; x: number; y: number } | null>(null)
+  const describe = (i: number, j: number, v: number | null) => tip?.(i, j, v) ?? { title: `${rows[i]}, ${cols[j]}`, value: v === null ? 'Not observed yet' : format(v) }
   return (
-    <div className="heat" role="table" aria-label={label} style={{ gridTemplateColumns: `minmax(64px,auto) repeat(${cols.length}, minmax(28px,1fr))` }}>
-      <div role="row" className="heat-row heat-head">
-        <span role="columnheader" />
-        {cols.map((c) => (
-          <span role="columnheader" key={c}>{c}</span>
-        ))}
-      </div>
-      {cells.map((row, i) => (
-        <div role="row" className="heat-row" key={rows[i]}>
-          <span role="rowheader">{rows[i]}</span>
-          {row.map((v, j) => (
-            <span role="cell" key={j} className={v === null ? 'heat-cell na' : 'heat-cell'} style={v === null ? undefined : { ['--i' as string]: String(i * row.length + j), ['--t' as string]: String(Math.min(1, Math.max(0, v) / top)), color: Math.max(0, v) / top > 0.5 ? '#2e1800' : '#f3e8d8' }} title={v === null ? 'Not observed yet' : format(v)}>
-              <span className="heat-val">{v === null ? '' : format(v)}</span>
-            </span>
+    <div className="heat-wrap" onPointerLeave={() => setHover(null)}>
+      <div className="heat" role="table" aria-label={label} style={{ gridTemplateColumns: `minmax(64px,auto) repeat(${cols.length}, minmax(28px,1fr))` }}>
+        <div role="row" className="heat-row heat-head">
+          <span role="columnheader" />
+          {cols.map((c, j) => (
+            <span role="columnheader" key={c + j} className={hover?.j === j ? 'lit' : ''}>{c}</span>
           ))}
         </div>
-      ))}
+        {cells.map((row, i) => (
+          <div role="row" className="heat-row" key={rows[i]}>
+            <span role="rowheader" className={hover?.i === i ? 'lit' : ''}>{rows[i]}</span>
+            {row.map((v, j) => {
+              const d = describe(i, j, v)
+              return (
+                <span
+                  role="cell"
+                  key={j}
+                  aria-label={`${d.title}: ${d.value}`}
+                  className={`${v === null ? 'heat-cell na' : 'heat-cell'} ${hover?.i === i && hover.j === j ? 'on' : ''}`}
+                  style={v === null ? undefined : { ['--i' as string]: String(i * row.length + j), ['--t' as string]: String(Math.min(1, Math.max(0, v) / top)), color: Math.max(0, v) / top > 0.5 ? '#2e1800' : '#f3e8d8' }}
+                  onPointerEnter={(e) => {
+                    const box = (e.currentTarget.closest('.heat-wrap') as HTMLElement).getBoundingClientRect()
+                    const r = e.currentTarget.getBoundingClientRect()
+                    setHover({ i, j, x: r.left + r.width / 2 - box.left, y: r.top - box.top })
+                  }}
+                >
+                  <span className="heat-val">{v === null ? '' : format(v)}</span>
+                </span>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+      {hover && (() => {
+        const d = describe(hover.i, hover.j, cells[hover.i][hover.j])
+        return (
+          <div className="chart-tip" style={{ left: hover.x, top: hover.y }} aria-hidden>
+            <span>{d.title}</span>
+            <strong>{d.value}</strong>
+          </div>
+        )
+      })()}
     </div>
   )
 }
 
-export function Pareto({ curve, label, marker = 0.2 }: { curve: { x: number; y: number }[]; label: string; marker?: number }) {
+export function Pareto({ curve, label, marker = 0.2, count }: { curve: { x: number; y: number }[]; label: string; marker?: number; count?: number }) {
   const [ref, { w }] = useSize<HTMLDivElement>()
+  const [hover, setHover] = useState<{ x: number; y: number } | null>(null)
   const width = Math.max(240, w)
   const height = 200
   const pad = { l: 36, r: 12, t: 10, b: 24 }
-  const x = useMemo(() => scaleLinear().domain([0, 1]).range([pad.l, width - pad.r]), [width])
+  const x = useMemo(() => scaleLinear().domain([0, 1]).range([pad.l, width - pad.r]).clamp(true), [width])
   const y = scaleLinear().domain([0, 1]).range([height - pad.b, pad.t])
   const ln = line<{ x: number; y: number }>().x((p) => x(p.x)).y((p) => y(p.y)).curve(curveMonotoneX)
   const step = Math.max(1, Math.floor(curve.length / 300))
   const thin = curve.filter((_, i) => i % step === 0 || i === curve.length - 1)
   const at = curve.find((p) => p.x >= marker) ?? curve[curve.length - 1]
+  const pick = (fx: number) => {
+    // The curve is sorted by x, so a binary search finds the nearest ranked product.
+    let lo = 0
+    let hi = curve.length - 1
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (curve[mid].x < fx) lo = mid + 1
+      else hi = mid
+    }
+    return curve[lo]
+  }
+  const shown = hover ?? at
   return (
-    <div ref={ref} className="pareto">
-      <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={label}>
+    <div ref={ref} className="pareto" onPointerLeave={() => setHover(null)}>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width={width}
+        height={height}
+        role="img"
+        aria-label={label}
+        onPointerMove={(e) => {
+          const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect()
+          const fx = x.invert(((e.clientX - r.left) / r.width) * width)
+          const p = pick(Math.max(0.0001, fx))
+          if (p) setHover(p)
+        }}
+      >
         {[0, 0.5, 1].map((t) => (
           <g key={t}>
             <line x1={pad.l} x2={width - pad.r} y1={y(t)} y2={y(t)} className="grid" />
@@ -117,14 +169,104 @@ export function Pareto({ curve, label, marker = 0.2 }: { curve: { x: number; y: 
         ))}
         <line x1={x(0)} y1={y(0)} x2={x(1)} y2={y(1)} className="pareto-even" />
         <path d={ln(thin) ?? ''} className="pareto-line" />
-        {at && (
-          <g>
-            <line x1={x(at.x)} x2={x(at.x)} y1={y(0)} y2={y(at.y)} className="pareto-drop" />
-            <line x1={pad.l} x2={x(at.x)} y1={y(at.y)} y2={y(at.y)} className="pareto-drop" />
-            <circle cx={x(at.x)} cy={y(at.y)} r={4.5} className="pareto-dot" />
+        {shown && (
+          <g className={hover ? 'pareto-live' : ''}>
+            <line x1={x(shown.x)} x2={x(shown.x)} y1={y(0)} y2={y(shown.y)} className="pareto-drop" />
+            <line x1={pad.l} x2={x(shown.x)} y1={y(shown.y)} y2={y(shown.y)} className="pareto-drop" />
+            <circle cx={x(shown.x)} cy={y(shown.y)} r={4.5} className="pareto-dot" />
           </g>
         )}
+        <rect x={pad.l} y={pad.t} width={width - pad.l - pad.r} height={height - pad.t - pad.b} fill="transparent" />
       </svg>
+      {hover && (
+        <div className="chart-tip" style={{ left: `${(x(hover.x) / width) * 100}%`, top: (y(hover.y) / height) * 100 + '%' }} aria-hidden>
+          <span>
+            Top {pct(hover.x, 0)} of products{count ? ` (${Math.max(1, Math.round(hover.x * count)).toLocaleString('en')})` : ''}
+          </span>
+          <strong>{pct(hover.y, 1)} of sales</strong>
+        </div>
+      )}
     </div>
+  )
+}
+
+/** Orders by how many days they took to ship; the last bar holds anything slower. */
+export function ShipBars({ counts, orders }: { counts: number[]; orders: number }) {
+  const [hover, setHover] = useState<number | null>(null)
+  const top = Math.max(1, ...counts)
+  const last = counts.length - 1
+  const name = (d: number) => (d === 0 ? 'Same day' : d === last ? `${d}+ days` : d === 1 ? '1 day' : `${d} days`)
+  return (
+    <div className="shipbars" role="img" aria-label={counts.map((c, d) => `${name(d)}: ${c} orders`).join(', ')} onPointerLeave={() => setHover(null)}>
+      {counts.map((c, d) => (
+        <div key={d} className={`shipbar ${hover === d ? 'on' : ''}`} onPointerEnter={() => setHover(d)}>
+          <span className="shipbar-col">
+            <i style={{ height: `${Math.max(2, (c / top) * 100)}%`, ['--n' as string]: String(d) }} />
+          </span>
+          <span className="shipbar-day">{d === last ? `${d}+` : d}</span>
+          {hover === d && (
+            <span className="chart-tip chart-tip-up" aria-hidden>
+              <span>{name(d)}</span>
+              <strong>
+                {c.toLocaleString('en')} orders, {pct(c / Math.max(1, orders), 0)}
+              </strong>
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+
+/** Sub-categories on a ring, joined by a line for each pair that shares orders more often than
+ *  chance. Thicker lines are stronger pairs; pointing at a line or a row lights both ends. */
+export function PairWeb({ pairs, active, onHover, label }: { pairs: { a: string; b: string; together: number; lift: number }[]; active: number | null; onHover: (i: number | null) => void; label: string }) {
+  const W = 360
+  const H = 300
+  const cx = W / 2
+  const cy = H / 2
+  const R = 104
+  const nodes = useMemo(() => {
+    const names: string[] = []
+    for (const p of pairs) for (const n of [p.a, p.b]) if (!names.includes(n)) names.push(n)
+    return names.map((name, i) => {
+      const t = (i / names.length) * Math.PI * 2 - Math.PI / 2
+      return { name, x: cx + R * Math.cos(t), y: cy + R * Math.sin(t), cos: Math.cos(t), sin: Math.sin(t) }
+    })
+  }, [pairs, cx, cy])
+  const at = (n: string) => nodes.find((d) => d.name === n)!
+  const maxLift = Math.max(...pairs.map((p) => p.lift))
+  const lit = active !== null ? new Set([pairs[active].a, pairs[active].b]) : null
+  return (
+    <svg className="pairweb" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}: ${pairs.map((p) => `${p.a} with ${p.b}, ${p.lift.toFixed(1)} times chance`).join('; ')}`} onPointerLeave={() => onHover(null)}>
+      {pairs.map((p, i) => {
+        const a = at(p.a)
+        const b = at(p.b)
+        // Bend each line toward the middle so lines between neighbours don't hug the ring.
+        const mx = (a.x + b.x) / 2
+        const my = (a.y + b.y) / 2
+        const qx = mx + (cx - mx) * 0.55
+        const qy = my + (cy - my) * 0.55
+        const w = 1.5 + (Math.max(0, p.lift - 1) / Math.max(0.01, maxLift - 1)) * 6
+        return (
+          <g key={`${p.a}${p.b}`} className={`pw-link ${active === i ? 'on' : active !== null ? 'off' : ''}`} onPointerEnter={() => onHover(i)} style={{ ['--n' as string]: String(i) }}>
+            <path d={`M${a.x},${a.y} Q${qx},${qy} ${b.x},${b.y}`} className="pw-hit" />
+            <path d={`M${a.x},${a.y} Q${qx},${qy} ${b.x},${b.y}`} className="pw-line" strokeWidth={w} pathLength={1} />
+          </g>
+        )
+      })}
+      {nodes.map((n) => {
+        const anchor = n.cos > 0.3 ? 'start' : n.cos < -0.3 ? 'end' : 'middle'
+        const lx = n.x + n.cos * 12
+        const ly = n.y + n.sin * 14 + (Math.abs(n.cos) <= 0.3 ? (n.sin > 0 ? 8 : -2) : 4)
+        return (
+          <g key={n.name} className={`pw-node ${lit ? (lit.has(n.name) ? 'on' : 'off') : ''}`}>
+            <circle cx={n.x} cy={n.y} r={6} />
+            <text x={lx} y={ly} textAnchor={anchor}>{n.name.length > 18 ? `${n.name.slice(0, 17)}…` : n.name}</text>
+          </g>
+        )
+      })}
+    </svg>
   )
 }

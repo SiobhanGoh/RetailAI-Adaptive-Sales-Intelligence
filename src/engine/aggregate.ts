@@ -230,8 +230,20 @@ export function rhythm(rows: Row[]): { grid: number[][]; max: number } {
   return { grid, max }
 }
 
-export function shippingDays(rows: Row[]): { median: number; p90: number } | null {
-  const d = rows.filter((r) => r.shipDay !== undefined).map((r) => r.shipDay! - r.day).filter((x) => x >= 0).sort((a, b) => a - b)
+/** Days from order to shipping, counted once per order. `counts[d]` is how many orders took d
+ *  days; the last bucket also holds anything slower. */
+export function shippingDays(rows: Row[]): { median: number; p90: number; counts: number[]; orders: number } | null {
+  const byOrder = new Map<string, number>()
+  for (const r of rows) {
+    if (r.shipDay === undefined) continue
+    const d = r.shipDay - r.day
+    if (d >= 0 && !byOrder.has(r.order)) byOrder.set(r.order, d)
+  }
+  const d = [...byOrder.values()].sort((a, b) => a - b)
   if (!d.length) return null
-  return { median: d[Math.floor(d.length / 2)], p90: d[Math.floor(d.length * 0.9)] }
+  const p90 = d[Math.floor(d.length * 0.9)]
+  const last = Math.min(14, Math.max(7, p90 + 1))
+  const counts = new Array<number>(last + 1).fill(0)
+  for (const v of d) counts[Math.min(last, v)]++
+  return { median: d[Math.floor(d.length / 2)], p90, counts, orders: d.length }
 }
