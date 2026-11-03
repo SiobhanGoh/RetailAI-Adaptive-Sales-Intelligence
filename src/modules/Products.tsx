@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { PairWeb } from '../charts/misc'
+import { SearchBox } from '../ui/SearchBox'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Details, Empty, Fig, Headline, Panel } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Panel, SaveCsv } from '../ui/primitives'
 import { buildIndex, similarProducts, subcategoryAffinity, suggestFor, togetherWith, topPairs, type Suggestion } from '../engine/recommend'
 import { downloadCsv, money, plural, shorten } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
@@ -24,7 +25,7 @@ function TagList({ items, empty, why }: { items: Suggestion[]; empty: string; wh
 export function Products() {
   const { ds, rows, currency, sampleId } = useApp()
   const idx = useMemo(() => (ds?.capabilities.products ? buildIndex(rows) : null), [rows, ds])
-  const [query, setQuery] = useState('')
+  const [picked, setPicked] = useState('')
   const [cat, setCat] = useState('')
   const [sub, setSub] = useState('')
   // Narrowing by category and sub-category shortens the name list and jumps to that group's best seller.
@@ -36,12 +37,8 @@ export function Products() {
     return [...set].sort()
   }, [idx, cat])
   const pool = useMemo(() => (idx ? [...idx.products.values()].filter((p) => (!cat || p.category === cat) && (!sub || p.subcategory === sub)).sort((a, b) => b.net - a.net) : []), [idx, cat, sub])
-  const byName = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const p of pool) if (!m.has(p.name)) m.set(p.name, p.id)
-    return m
-  }, [pool])
-  const seed = idx ? (byName.get(query) ?? (idx.products.has(query) ? query : (cat || sub) && pool[0] ? pool[0].id : idx.popular[0])) : undefined
+  const seed = idx ? (picked && idx.products.has(picked) ? picked : (cat || sub) && pool[0] ? pool[0].id : idx.popular[0]) : undefined
+  const searchItems = useMemo(() => pool.map((p) => ({ id: p.id, label: p.name, sub: p.subcategory, meta: money(p.net, currency) })), [pool, currency])
   const [hoverPair, setHoverPair] = useState<number | null>(null)
   const info = seed && idx ? idx.products.get(seed) : undefined
 
@@ -92,15 +89,18 @@ export function Products() {
           ) : null}
         </Headline>
         <div className="finder">
-          <label className="select-wrap">
-            <span>Look up any product</span>
-            <input className="field" list="product-list" value={query} placeholder={cat || sub ? `Type a name, ${plural(pool.length, 'product')} in ${sub || cat}` : 'Type a product name'} onChange={(e) => setQuery(e.target.value)} />
-            <datalist id="product-list">
-              {[...byName.keys()].slice(0, 3000).map((n) => (
-                <option key={n} value={n} />
-              ))}
-            </datalist>
-          </label>
+          <div className="select-wrap">
+            <span aria-hidden>Look up any product</span>
+            <SearchBox
+              key={`${cat}|${sub}`}
+              items={searchItems}
+              onPick={setPicked}
+              label="Look up any product"
+              placeholder={cat || sub ? `Search ${plural(pool.length, 'product')} in ${sub || cat}` : `Search ${plural(pool.length, 'product')}`}
+              idleTitle={cat || sub ? `Best sellers in ${sub || cat}` : 'Best sellers'}
+              emptyHint={cat || sub ? 'Nothing here matches. Try All categories.' : 'No product name matches. Try fewer letters.'}
+            />
+          </div>
           {cats.length > 0 && (
             <div className="finder-filters">
               <div className="finder-cats" role="group" aria-label="Narrow by category">
@@ -113,7 +113,7 @@ export function Products() {
                     onClick={() => {
                       setCat(c)
                       setSub('')
-                      setQuery('')
+                      setPicked('')
                     }}
                   >
                     {c || 'All categories'}
@@ -127,7 +127,7 @@ export function Products() {
                   value={sub}
                   onChange={(e) => {
                     setSub(e.target.value)
-                    setQuery('')
+                    setPicked('')
                   }}
                 >
                   <option value="">Any sub-category</option>
@@ -153,8 +153,24 @@ export function Products() {
         </Panel>
       </div>
 
-      <Details title="What sells together" icon="link">
-        <Panel title="What sells together" className="panel-together">
+      <Details
+        title="What sells together"
+        icon="link"
+        actions={
+          (affinity.length > 0 || pairs.length > 0) && (
+            <SaveCsv
+              label="Save these pairs as a CSV"
+              onClick={() =>
+                downloadCsv('what-sells-together', [
+                  ...affinity.map((p) => ({ kind: 'sub-category', a: p.a, b: p.b, orders_together: p.together, lift: p.lift.toFixed(2) })),
+                  ...topPairs(idx, 10_000).map((p) => ({ kind: 'item', a: idx.products.get(p.a)!.name, b: idx.products.get(p.b)!.name, orders_together: p.together, lift: p.lift.toFixed(2) })),
+                ])
+              }
+            />
+          )
+        }
+      >
+        <Panel className="panel-together">
           {affinity.length > 0 ? (
             <div className="together">
               <PairWeb pairs={affinity} active={hoverPair} onHover={setHoverPair} label="Sub-categories joined by how often they share an order" />
@@ -187,9 +203,6 @@ export function Products() {
             <div className="together-items">
               <div className="link-row link-head" aria-hidden>
                 <span>Single items bought together more than once</span>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => downloadCsv('item-pairs', topPairs(idx, 10_000).map((p) => ({ item_a: idx.products.get(p.a)!.name, item_b: idx.products.get(p.b)!.name, orders_together: p.together, lift: p.lift.toFixed(2) })))}>
-                  Download CSV
-                </button>
               </div>
               <ol className="links">
                 {pairs.map((p) => (

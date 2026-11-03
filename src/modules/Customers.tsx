@@ -3,10 +3,13 @@ import { useApp } from '../state'
 import { usePrint } from '../receipt'
 import { Details, Empty, Fig, Headline, Panel } from '../ui/primitives'
 import { Heat } from '../charts/misc'
-import { cohorts, customerStats, quarterLabel, repeatStats, rfGrid, segmentSummary, type SegmentId } from '../engine/customers'
+import { SearchBox } from '../ui/SearchBox'
+import { SEGMENTS, cohorts, customerStats, quarterLabel, repeatStats, rfGrid, segmentSummary, type SegmentId } from '../engine/customers'
 import { buildIndex, suggestForCustomer, REASON_LABEL } from '../engine/recommend'
 import { count, downloadCsv, fmtDay, money, pct, plural } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
+
+const SEGMENT_LABELS = SEGMENTS.map((s) => [s.id, s.label] as const)
 
 export function Customers() {
   const { ds, rows, rowsAllDates, filters, currency, sampleId } = useApp()
@@ -22,6 +25,10 @@ export function Customers() {
   const idx = useMemo(() => (stats.length ? buildIndex(history) : null), [history, stats.length])
   const picked = segments.find((s) => s.id === seg)!
   const person = stats.find((c) => c.id === who || c.name === who) ?? (who ? undefined : picked?.members[0])
+  const custItems = useMemo(() => {
+    const label = new Map(SEGMENT_LABELS)
+    return [...stats].sort((a, b) => b.net - a.net).map((c) => ({ id: c.id, label: c.name ?? c.id, sub: `${label.get(c.segment) ?? ''}${c.name && c.name !== c.id ? `, ${c.id}` : ''}`, meta: money(c.net, currency) }))
+  }, [stats, currency])
   const ideas = useMemo(() => (idx && person ? suggestForCustomer(idx, person.id, 5) : []), [idx, person])
 
   const champions = segments.find((s) => s.id === 'champions')!
@@ -96,15 +103,16 @@ export function Customers() {
               {picked.rule}. {picked.action}
             </p>
           </header>
-          <label className="cust-find">
-            <span className="sr-only">Find any customer</span>
-            <input className="field" list="customer-list" value={who} placeholder="Find any customer by name or ID" onChange={(e) => setWho(e.target.value)} />
-            <datalist id="customer-list">
-              {stats.slice(0, 2000).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </datalist>
-          </label>
+          <div className="cust-find">
+            <SearchBox
+              items={custItems}
+              onPick={setWho}
+              label="Find any customer"
+              placeholder={`Find any of ${plural(stats.length, 'customer')} by name or ID`}
+              idleTitle="Biggest customers in this period"
+              emptyHint="No customer name or ID matches. Try fewer letters."
+            />
+          </div>
           {picked.members.length ? (
             <>
               <div className="who-list" role="list">

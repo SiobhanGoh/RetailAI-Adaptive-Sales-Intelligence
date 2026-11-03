@@ -209,9 +209,9 @@ const ICONS: Record<DockIcon, ReactNode> = {
 /** Extra views for a screen. They live as icons on a floating dock at the side of the screen;
  *  pointing at one slides its title out, and clicking springs a liquid-glass sheet out of the icon.
  *  `inline` keeps the old in-page drawer, for content that has to be seen straight away. */
-export function Details({ label = 'Show details', title, icon = 'pie', children, defaultOpen = false, inline = false }: { label?: string; title?: string; icon?: DockIcon; children: ReactNode; defaultOpen?: boolean; inline?: boolean }) {
+export function Details({ label = 'Show details', title, icon = 'pie', children, defaultOpen = false, inline = false, actions }: { label?: string; title?: string; icon?: DockIcon; children: ReactNode; defaultOpen?: boolean; inline?: boolean; actions?: ReactNode }) {
   if (inline) return <InlineDetails label={label} defaultOpen={defaultOpen}>{children}</InlineDetails>
-  return <DockSheet title={title ?? label.replace(/^Show (the )?/, '').replace(/^./, (c) => c.toUpperCase())} icon={icon}>{children}</DockSheet>
+  return <DockSheet title={title ?? label.replace(/^Show (the )?/, '').replace(/^./, (c) => c.toUpperCase())} icon={icon} actions={actions}>{children}</DockSheet>
 }
 
 const glint = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -222,7 +222,7 @@ const glint = (e: React.PointerEvent<HTMLDivElement>) => {
   card.style.setProperty('--my', `${e.clientY - r.top}px`)
 }
 
-function DockSheet({ title, icon, children }: { title: string; icon: DockIcon; children: ReactNode }) {
+function DockSheet({ title, icon, children, actions }: { title: string; icon: DockIcon; children: ReactNode; actions?: ReactNode }) {
   const [dock, setDock] = useState<HTMLElement | null>(null)
   const [mounted, setMounted] = useState(false)
   const btn = useRef<HTMLButtonElement>(null)
@@ -323,6 +323,7 @@ function DockSheet({ title, icon, children }: { title: string; icon: DockIcon; c
                   </svg>
                 </span>
                 <h2>{title}</h2>
+                {actions}
                 <button type="button" className="gsheet-close" onClick={close} aria-label={`Close ${title}`}>
                   <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
                     <path d="M3 3l10 10M13 3 3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -389,6 +390,20 @@ function InlineDetails({ label, children, defaultOpen }: { label: string; childr
         </div>
       )}
     </section>
+  )
+}
+
+/** A round icon button that saves a CSV; its name shows as a tooltip. */
+export function SaveCsv({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button type="button" className="icon-btn" onClick={onClick} aria-label={label} title={label}>
+      <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden>
+        <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10 3v9m-3.5-3.5L10 12l3.5-3.5" />
+          <path d="M4 13.5V16h12v-2.5" />
+        </g>
+      </svg>
+    </button>
   )
 }
 

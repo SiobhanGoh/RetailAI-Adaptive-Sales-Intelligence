@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Details, Empty, Fig, Headline, Panel, Segmented } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Panel, SaveCsv, Segmented } from '../ui/primitives'
 import { Heat, Pareto, ShipBars, TagBars } from '../charts/misc'
 import { breakdown, filterRows, paretoCurve, rhythm, shareOfTop, shippingDays } from '../engine/aggregate'
 import { DIMENSION_LABEL, DIMENSION_PLURAL, type Dimension } from '../engine/types'
@@ -143,9 +143,7 @@ export function Sales() {
               ) : (
                 <span className="fine" style={{ margin: 0 }}>Pick a bar to filter every screen</span>
               ))}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => downloadCsv(`sales-by-${active}`, shown.map((s) => ({ [active]: s.key, net_sales: s.net.toFixed(2), share: s.share.toFixed(4), orders: s.orders, ...(s.profit !== undefined ? { profit: s.profit.toFixed(2) } : {}) })))}>
-              Download CSV
-            </button>
+            <SaveCsv label={`Save sales by ${unit} as a CSV`} onClick={() => downloadCsv(`sales-by-${active}`, shown.map((s) => ({ [active]: s.key, net_sales: s.net.toFixed(2), share: s.share.toFixed(4), orders: s.orders, ...(s.profit !== undefined ? { profit: s.profit.toFixed(2) } : {}) })))} />
           </span>
         }
       >
