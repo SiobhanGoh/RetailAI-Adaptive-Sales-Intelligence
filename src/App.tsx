@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { gsap } from 'gsap'
 import { AppProvider, MODULES, useApp } from './state'
 import { ReceiptProvider } from './receipt'
-import { DisplayBand, DropZone, FilterCard, FilterChips, FilterSheet, ReceiptPrinter, SamplePicker, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
+import { DisplayBand, DropZone, FilterCard, FilterChips, ReceiptPrinter, SamplePicker, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
 import { reducedMotion } from './ui/primitives'
 import { Overview } from './modules/Overview'
 import { Sales } from './modules/Sales'
@@ -121,6 +121,7 @@ function Console() {
   const shell = useRef<HTMLDivElement>(null)
   const booted = useRef(false)
   const openFilters = useCallback(() => setFiltersOpen(true), [])
+  const closeFilters = useCallback(() => setFiltersOpen(false), [])
   const handlers = useMemo(() => ({ filters: openFilters, upload: pick }), [openFilters, pick])
   useShortcuts(handlers)
 
@@ -158,7 +159,7 @@ function Console() {
       </header>
       <div className="railrow">
         <TicketRail />
-        <FilterCard onOpen={openFilters} />
+        <FilterCard open={filtersOpen} onOpen={openFilters} onClose={closeFilters} />
       </div>
       <div className="deckrow">
         <Screen onOpen={pick} />
@@ -171,7 +172,6 @@ function Console() {
       <footer className="controls">
         <TuningBand />
       </footer>
-      <FilterSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} />
       <SamplePicker open={samplesOpen} onClose={() => setSamplesOpen(false)} onOpenFile={pick} />
       <DropZone onFile={openFile} />
     </div>

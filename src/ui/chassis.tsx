@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
+import { createPortal } from 'react-dom'
 import { scaleLinear } from 'd3-scale'
 import { area, curveMonotoneX } from 'd3-shape'
 import { MODULES, useApp, type ModuleId } from '../state'
@@ -77,19 +78,20 @@ function useFilterChips() {
 }
 
 /** The filter button sits in the tab row right above the receipt, where it is hard to miss. */
-export function FilterCard({ onOpen }: { onOpen: () => void }) {
+export function FilterCard({ open, onOpen, onClose }: { open: boolean; onOpen: () => void; onClose: () => void }) {
   const { ds, chips } = useFilterChips()
   if (!ds?.capabilities.dimensions.length) return <div className="filtercard filtercard-empty" aria-hidden />
   const names = ds.capabilities.dimensions.slice(0, 2).map((d) => DIMENSION_LABEL[d].toLowerCase())
   return (
     <div className={`filtercard ${chips.length ? 'on' : ''}`}>
-      <button type="button" className="filtercard-btn" onClick={onOpen} title={`Choose ${names.join(', ')} and more. Shortcut: F`}>
+      <button type="button" className="filtercard-btn" onClick={open ? onClose : onOpen} aria-expanded={open} aria-haspopup="dialog" title={`Choose ${names.join(', ')} and more. Shortcut: F`}>
         <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
           <path d="M3 4.5h14l-5.5 6.5v4.5l-3 1.5v-6z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
         </svg>
         <span>{chips.length ? `Filtered by ${plural(chips.length, 'choice')}` : 'Filter the data'}</span>
         {chips.length ? <b className="filtercard-count">{chips.length}</b> : <kbd aria-hidden>F</kbd>}
       </button>
+      {open && <FilterDrop onClose={onClose} />}
     </div>
   )
 }
@@ -491,17 +493,15 @@ function CustomPeriod({ min, max, from, to, years, onApply, onClose }: { min: nu
 
 // ------------------------------------------------------------------ filter sheet
 
-export function FilterSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { ds, filters, setFilters, resetFilters, rowsAllDates } = useApp()
-  const dialog = useRef<HTMLDialogElement>(null)
-  const [query, setQuery] = useState<Partial<Record<Dimension, string>>>({})
-
-  useEffect(() => {
-    const d = dialog.current
-    if (!d) return
-    if (open && !d.open) d.showModal()
-    if (!open && d.open) d.close()
-  }, [open])
+/** Filters open as a liquid-glass dropdown under the filter button (a bottom sheet on phones).
+ *  Each group is one line with its picks; open one group at a time to choose. */
+export function FilterDrop({ onClose }: { onClose: () => void }) {
+  const { ds, filters, pickDims, rowsAllDates } = useApp()
+  const box = useRef<HTMLDivElement>(null)
+  const [query, setQuery] = useState('')
+  const dims = ds?.capabilities.dimensions ?? []
+  const firstPicked = dims.find((d) => (filters.dims[d] ?? []).length)
+  const [openDim, setOpenDim] = useState<Dimension | null>(firstPicked ?? dims[0] ?? null)
 
   const options = useMemo(() => {
     const out: Partial<Record<Dimension, { key: string; n: number }[]>> = {}
@@ -520,47 +520,124 @@ export function FilterSheet({ open, onClose }: { open: boolean; onClose: () => v
   const toggle = (d: Dimension, key: string) => {
     const cur = filters.dims[d] ?? []
     const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]
-    setFilters({ ...filters, dims: { ...filters.dims, [d]: next } })
+    const all = { ...filters.dims }
+    if (next.length) all[d] = next
+    else delete all[d]
+    pickDims(all)
   }
 
-  return (
-    <dialog ref={dialog} className="sheet" onClose={onClose} onClick={(e) => e.target === dialog.current && onClose()} aria-labelledby="sheet-title">
-      <div className="sheet-body">
-        <header className="sheet-head">
-          <h2 id="sheet-title">Filters</h2>
-          <p>{plural(rowsAllDates.length, 'line')} match outside the date range.</p>
-          <div className="sheet-actions">
-            <button type="button" className="btn btn-ghost" onClick={resetFilters}>Clear all</button>
-            <button type="button" className="btn btn-sticker" onClick={onClose}>Done</button>
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el) return
+    el.querySelector<HTMLElement>('.fd-group-btn')?.focus()
+    if (reducedMotion()) return
+    const t = gsap.fromTo(el, { opacity: 0, y: -10, scale: 0.96, filter: 'blur(6px)' }, { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)', duration: 0.45, ease: 'back.out(1.5)', clearProps: 'transform,filter' })
+    return () => {
+      t.kill()
+    }
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    const onAway = (e: PointerEvent) => {
+      const t = e.target as Element
+      if (!box.current?.contains(t) && !t.closest('.filtercard-btn, .fchip-more')) onClose()
+    }
+    addEventListener('keydown', onKey, true)
+    addEventListener('pointerdown', onAway)
+    return () => {
+      removeEventListener('keydown', onKey, true)
+      removeEventListener('pointerdown', onAway)
+    }
+  }, [onClose])
+
+  const picked = Object.values(filters.dims).reduce((a, v) => a + (v?.length ?? 0), 0)
+
+  // The dropdown lives on the page root, so nothing on the page can sit over it; it is placed
+  // right under the filter button and follows it if the window changes size.
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
+  useLayoutEffect(() => {
+    const place = () => {
+      const r = document.querySelector('.filtercard-btn')?.getBoundingClientRect()
+      if (r) setPos({ top: r.bottom + 12, right: Math.max(16, window.innerWidth - r.right) })
+    }
+    place()
+    addEventListener('resize', place)
+    return () => removeEventListener('resize', place)
+  }, [])
+
+  return createPortal(
+    <>
+      <div className="fd-backdrop" aria-hidden onClick={onClose} />
+      <div className="filterdrop" ref={box} role="dialog" aria-label="Filters" style={pos ? ({ '--fd-top': `${pos.top}px`, '--fd-right': `${pos.right}px` } as React.CSSProperties) : undefined}>
+        <header className="fd-head">
+          <div>
+            <h2>Filters</h2>
+            <p>{plural(rowsAllDates.length, 'row')} match{rowsAllDates.length === 1 ? 'es' : ''}, before the date range is applied.</p>
+          </div>
+          <div className="fd-actions">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => pickDims({})} disabled={!picked}>Clear all</button>
+            <button type="button" className="btn btn-sticker btn-sm" onClick={onClose}>Done</button>
           </div>
         </header>
-        {DIMENSIONS.filter((d) => options[d]).map((d) => {
-          const all = options[d]!
-          const q = (query[d] ?? '').toLowerCase()
-          const list = all.filter((o) => !q || o.key.toLowerCase().includes(q)).slice(0, q ? 60 : all.length > 30 ? 24 : all.length)
-          const sel = filters.dims[d] ?? []
-          return (
-            <fieldset key={d} className="chipset">
-              <legend>
-                {DIMENSION_LABEL[d]} <span>{all.length}</span>
-              </legend>
-              {all.length > 12 && <input className="field" type="search" placeholder={`Find a ${DIMENSION_LABEL[d].toLowerCase()}`} value={query[d] ?? ''} onChange={(e) => setQuery({ ...query, [d]: e.target.value })} aria-label={`Search ${DIMENSION_LABEL[d]}`} />}
-              <div className="chips">
-                {sel.filter((s) => !list.some((o) => o.key === s)).map((s) => (
-                  <button key={s} type="button" className="chip on" aria-pressed onClick={() => toggle(d, s)}>{s}</button>
-                ))}
-                {list.map((o) => (
-                  <button key={o.key} type="button" className={`chip ${sel.includes(o.key) ? 'on' : ''}`} aria-pressed={sel.includes(o.key)} onClick={() => toggle(d, o.key)}>
-                    {o.key}
-                  </button>
-                ))}
-                {!q && all.length > list.length && <span className="chip-more">Search to see all {all.length}</span>}
-              </div>
-            </fieldset>
-          )
-        })}
+        <div className="fd-body">
+          {DIMENSIONS.filter((d) => options[d]).map((d) => {
+            const all = options[d]!
+            const sel = filters.dims[d] ?? []
+            const isOpen = openDim === d
+            const q = isOpen ? query.toLowerCase() : ''
+            const list = all.filter((o) => !q || o.key.toLowerCase().includes(q)).slice(0, q ? 80 : all.length > 30 ? 24 : all.length)
+            return (
+              <section key={d} className={`fd-group ${isOpen ? 'open' : ''}`}>
+                <button
+                  type="button"
+                  className="fd-group-btn"
+                  aria-expanded={isOpen}
+                  onClick={() => {
+                    setOpenDim(isOpen ? null : d)
+                    setQuery('')
+                  }}
+                >
+                  <span className="fd-name">{DIMENSION_LABEL[d]}</span>
+                  <span className="fd-count">{all.length}</span>
+                  <span className="fd-picks">
+                    {sel.slice(0, 2).map((s) => (
+                      <i key={s}>{s}</i>
+                    ))}
+                    {sel.length > 2 && <i className="more">+{sel.length - 2}</i>}
+                  </span>
+                  <span className="fd-chev" aria-hidden />
+                </button>
+                {isOpen && (
+                  <div className="fd-panel">
+                    {all.length > 12 && <input className="field" type="search" placeholder={`Find a ${DIMENSION_LABEL[d].toLowerCase()} among ${all.length}`} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={`Search ${DIMENSION_LABEL[d]}`} />}
+                    <div className="chips">
+                      {sel.filter((s) => !list.some((o) => o.key === s)).map((s) => (
+                        <button key={s} type="button" className="chip on" aria-pressed onClick={() => toggle(d, s)}>{s}</button>
+                      ))}
+                      {list.map((o) => (
+                        <button key={o.key} type="button" className={`chip ${sel.includes(o.key) ? 'on' : ''}`} aria-pressed={sel.includes(o.key)} onClick={() => toggle(d, o.key)}>
+                          {o.key}
+                        </button>
+                      ))}
+                      {!q && all.length > list.length && <span className="chip-more">Search to see all {all.length}</span>}
+                      {q && !list.length && <span className="chip-more">Nothing matches “{query}”.</span>}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )
+          })}
+        </div>
       </div>
-    </dialog>
+    </>,
+    document.body,
   )
 }
 

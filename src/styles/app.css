@@ -5071,3 +5071,189 @@ button.who-row.on::after {
   color: var(--amber);
   box-shadow: inset 0 0 0 1px rgba(255, 173, 92, 0.45);
 }
+
+/* ================================================================ filters as a glass dropdown */
+.filtercard {
+  position: relative;
+}
+.fd-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: transparent;
+}
+.filterdrop {
+  position: fixed;
+  z-index: 71;
+  top: var(--fd-top, 140px);
+  right: var(--fd-right, 32px);
+  width: min(470px, calc(100vw - 32px));
+  max-height: min(640px, calc(100dvh - var(--fd-top, 140px) - 16px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-radius: 24px;
+  color: var(--chassis-ink);
+  background: linear-gradient(150deg, var(--lg-sheen), transparent 32%), linear-gradient(color-mix(in srgb, var(--paper) 78%, transparent), color-mix(in srgb, var(--paper) 78%, transparent));
+  -webkit-backdrop-filter: blur(30px) saturate(185%);
+  backdrop-filter: blur(30px) saturate(185%);
+  box-shadow: inset 0 1px 0 var(--lg-rim), inset 0 0 0 1px var(--lg-edge), 0 30px 60px rgba(30, 20, 10, 0.28);
+  overflow: hidden;
+  transform-origin: top right;
+}
+:root[data-theme='dark'] .filterdrop {
+  box-shadow: inset 0 1px 0 var(--lg-rim), inset 0 0 0 1px var(--lg-edge), 0 30px 60px rgba(0, 0, 0, 0.55);
+}
+/* a small notch points back at the button */
+.filterdrop::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: 34px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: inherit;
+  transform: translateY(-50%) rotate(45deg);
+  box-shadow: inset 1px 1px 0 var(--lg-edge);
+}
+.fd-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 18px 12px 22px;
+  border-bottom: 1px solid color-mix(in srgb, var(--chassis-ink) 10%, transparent);
+}
+.fd-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+.fd-head p {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--chassis-dim);
+}
+.fd-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+.fd-body {
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 8px 10px 12px;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+.fd-group {
+  border-radius: 14px;
+  transition: background-color 0.2s;
+}
+.fd-group.open {
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
+  box-shadow: inset 0 0 0 1px var(--lg-edge);
+}
+.fd-group-btn {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fd-group-btn:hover {
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+}
+.fd-name {
+  font-weight: 650;
+  font-size: 14.5px;
+}
+.fd-count {
+  font-size: 12px;
+  color: var(--chassis-dim);
+  font-variant-numeric: tabular-nums;
+}
+.fd-picks {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+.fd-picks i {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--amber);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+}
+.fd-picks i.more {
+  flex: none;
+  background: var(--amber);
+  color: var(--amber-ink);
+}
+.fd-chev {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.3s var(--ease-out);
+  opacity: 0.6;
+}
+.fd-group.open .fd-chev {
+  transform: rotate(-135deg) translate(-2px, -2px);
+}
+.fd-panel {
+  display: grid;
+  gap: 10px;
+  padding: 2px 12px 14px;
+  animation: stepin 0.3s var(--ease-out) both;
+}
+.fd-panel .field {
+  width: 100%;
+}
+.fd-panel .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+@media (max-width: 600px) {
+  .fd-backdrop {
+    background: color-mix(in srgb, #15110d 40%, transparent);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+  .filterdrop {
+    position: fixed;
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-height: 82dvh;
+    transform-origin: bottom center;
+  }
+  .filterdrop::before {
+    display: none;
+  }
+  .fd-head {
+    flex-wrap: wrap;
+  }
+}
