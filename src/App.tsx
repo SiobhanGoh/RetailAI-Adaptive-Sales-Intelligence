@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { gsap } from 'gsap'
 import { AppProvider, MODULES, useApp } from './state'
 import { ReceiptProvider } from './receipt'
-import { DisplayBand, DropZone, FilterSheet, ReceiptPrinter, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
+import { DisplayBand, DropZone, FilterSheet, ReceiptPrinter, SamplePicker, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
 import { reducedMotion } from './ui/primitives'
 import { Overview } from './modules/Overview'
 import { Sales } from './modules/Sales'
@@ -79,6 +79,7 @@ function Screen({ onOpen }: { onOpen: () => void }) {
 
 function Console() {
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [samplesOpen, setSamplesOpen] = useState(false)
   const { pick, openFile } = useFileOpener()
   const { ds, report } = useApp()
   const shell = useRef<HTMLDivElement>(null)
@@ -116,7 +117,7 @@ function Console() {
       <a className="skip" href="#screen">Skip to the screen</a>
       <header className="topbar">
         <Logo />
-        <DisplayBand />
+        <DisplayBand onPickSample={() => setSamplesOpen(true)} />
         <Utilities onFilters={openFilters} onUpload={pick} />
       </header>
       <TicketRail />
@@ -128,6 +129,7 @@ function Console() {
         <TuningBand />
       </footer>
       <FilterSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} />
+      <SamplePicker open={samplesOpen} onClose={() => setSamplesOpen(false)} onOpenFile={pick} />
       <DropZone onFile={openFile} />
     </div>
   )

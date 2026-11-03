@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
 import { Details, Fig, Headline, Panel, Segmented } from '../ui/primitives'
+import { KIND_LABEL, SAMPLES } from '../samples'
 import { ROLE_LABEL, ROLE_ORDER } from '../engine/mapping'
 import type { DateConvention, Mapping, Role } from '../engine/types'
 import { CURRENCIES, fmtDay, money, plural, type Currency } from '../format'
@@ -10,7 +11,8 @@ import evaluation from '../../verification/web_evaluation.json'
 const CONF_LABEL = { exact: 'Matched', likely: 'Likely', guess: 'Best guess' } as const
 
 export function Data({ onOpen }: { onOpen: () => void }) {
-  const { ds, source, remap, currency, setCurrency, loadBundled } = useApp()
+  const { ds, source, remap, currency, setCurrency, loadBundled, sampleId } = useApp()
+  const sample = SAMPLES.find((s) => s.id === sampleId)
   const [draft, setDraft] = useState<Mapping>({})
   useEffect(() => setDraft(ds?.mapping ?? {}), [ds])
   const changed = ds ? ROLE_ORDER.some((r) => (draft[r] ?? '') !== (ds.mapping[r] ?? '')) : false
@@ -49,11 +51,36 @@ export function Data({ onOpen }: { onOpen: () => void }) {
         <div className="row-actions">
           <button type="button" className="btn btn-sticker" onClick={onOpen}>Open a file</button>
           {!source?.bundled && (
-            <button type="button" className="btn btn-ghost" onClick={loadBundled}>Back to the sample store</button>
+            <button type="button" className="btn btn-ghost" onClick={loadBundled}>Back to a sample store</button>
           )}
         </div>
       </header>
 
+        {sample && (
+          <Panel title="About this sample" className="panel-about">
+            <p>
+              <span className={`kind kind-${sample.kind}`}>{KIND_LABEL[sample.kind]}</span> {sample.blurb} {sample.shows}
+            </p>
+            <p className="fine">
+              {sample.credit.text}{' '}
+              {sample.credit.href && (
+                <a href={sample.credit.href} target="_blank" rel="noreferrer">
+                  Source
+                </a>
+              )}
+              {sample.credit.licence && (
+                <>
+                  {' '}
+                  Licence:{' '}
+                  <a href={sample.credit.licenceHref} target="_blank" rel="noreferrer">
+                    {sample.credit.licence}
+                  </a>
+                  .
+                </>
+              )}
+            </p>
+          </Panel>
+        )}
         <Panel title="What we found" className="panel-quality">
           <ul className="quality">
             <li className="q-info">

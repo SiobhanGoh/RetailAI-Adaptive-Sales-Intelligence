@@ -2713,3 +2713,134 @@ button.tagbar:hover {
     scrollbar-width: none;
   }
 }
+
+/* ---------------------------------------------------------------- sample stores */
+
+button.band-store {
+  border: 0;
+  background: transparent;
+  padding: 4px 8px 4px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+}
+button.band-store:hover .band-store-name {
+  text-decoration: underline;
+  text-decoration-color: var(--amber-hot);
+  text-underline-offset: 3px;
+}
+.band-store-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.band-chev {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  opacity: 0.6;
+}
+.kind {
+  flex: none;
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.kind-real {
+  background: color-mix(in srgb, var(--up-paper) 18%, transparent);
+  color: var(--up-paper);
+}
+.kind-synthetic {
+  background: color-mix(in srgb, var(--amber-hot) 20%, transparent);
+  color: color-mix(in srgb, var(--amber-hot) 70%, var(--ink));
+}
+.kind-fictional {
+  background: var(--track);
+  color: var(--ink-dim);
+}
+.samples {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.sample {
+  width: 100%;
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 12px;
+  text-align: left;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.sample:hover {
+  transform: translateY(-2px);
+}
+.sample.on {
+  box-shadow: 0 0 0 2px var(--amber-hot);
+}
+.sample strong {
+  font-size: 16px;
+}
+.sample span:not(.kind) {
+  color: var(--ink-dim);
+  font-size: 13.5px;
+}
+.sample .sample-shows {
+  color: var(--ink) !important;
+}
+.panel-about p {
+  margin: 0;
+}
+.panel-about a {
+  color: inherit;
+  text-decoration-color: var(--amber-hot);
+}
+@media (max-width: 900px) {
+  .band-store .kind {
+    display: none;
+  }
+}
+
+/* Figures scale with their ticket, so long amounts (RM551.2K) never spill over. */
+.ticket-body {
+  container-type: inline-size;
+  min-width: 0;
+}
+.ticket-hero .readout-xl .readout-digits {
+  font-size: min(78px, 24cqi);
+}
+.ticket-hero .readout-xl .readout-unit {
+  font-size: min(52px, 15cqi);
+}
+.ticket:not(.ticket-hero) .readout-md .readout-digits {
+  font-size: min(34px, 19cqi);
+}
+.ticket:not(.ticket-hero) .readout-md .readout-unit {
+  font-size: min(22px, 12cqi);
+}
+.ticket-stub {
+  container-type: inline-size;
+  min-width: 0;
+}
+@container (max-width: 190px) {
+  .ticket-stub .delta-vs {
+    display: none;
+  }
+}
+.deck {
+  grid-template-columns: minmax(280px, 1.6fr) repeat(auto-fit, minmax(140px, 1fr));
+}

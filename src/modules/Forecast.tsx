@@ -12,7 +12,7 @@ import evaluation from '../../verification/web_evaluation.json'
 type Horizon = '4' | '8' | '12'
 
 export function Forecast() {
-  const { ds, rowsAllDates, filters, currency, source } = useApp()
+  const { ds, rowsAllDates, filters, currency, sampleId } = useApp()
   const [horizon, setHorizon] = useState<Horizon>('4')
   const [focus, setFocus] = useState<string>('all')
   const H = Number(horizon)
@@ -202,7 +202,7 @@ export function Forecast() {
             </Panel>
           </div>
 
-          {source?.bundled && focus === 'all' && !Object.values(filters.dims).some((v) => v?.length) && (
+          {sampleId === 'superstore' && focus === 'all' && !Object.values(filters.dims).some((v) => v?.length) && (
             <p className="note">
               Checked on this sample store with the model picked on earlier weeks and scored on later ones: {H <= 4 ? '4' : '12'}-week WAPE was {evalH.chosen_model_late_wape_pct}% and the 80% band held {evalH.band_80_coverage_on_late_origins_pct}% of outcomes, so the band is narrower than it should be. On those later weeks the four models were within {spread.toFixed(1)} points of each other, so no model is clearly better than the simple ones.
             </p>

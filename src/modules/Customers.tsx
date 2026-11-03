@@ -9,7 +9,7 @@ import { count, downloadCsv, fmtDay, money, pct, plural } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
 
 export function Customers() {
-  const { ds, rows, rowsAllDates, filters, currency, source } = useApp()
+  const { ds, rows, rowsAllDates, filters, currency, sampleId } = useApp()
   const [seg, setSeg] = useState<SegmentId>('at-risk')
   const [who, setWho] = useState('')
   const asOf = (ds?.capabilities.dates ? filters.to : 0) + 1
@@ -140,7 +140,7 @@ export function Customers() {
           ) : (
             <p className="quiet">Pick a customer to see items they have not bought yet, starting with best sellers in the sub-categories they buy most.</p>
           )}
-          {source?.bundled && (
+          {sampleId === 'superstore' && (
             <p className="fine">
               Tested on this sample store: these ideas matched a later purchase for {custEval.test.metrics[custEval.chosen_on_validation].hit_rate_at_5_pct}% of customers, below the {custEval.test.metrics.popular.hit_rate_at_5_pct}% for simply showing best sellers. Treat them as conversation starters.
             </p>

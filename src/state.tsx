@@ -4,6 +4,7 @@ import { buildDataset, type RawRecord } from './engine/clean'
 import { parseCsvText } from './engine/load'
 import { filterRows, kpis, comparisons, weeklySeries, type Filters, type Kpis, type Comparison, type Week } from './engine/aggregate'
 import { guessCurrency, type Currency } from './format'
+import { SAMPLES, type Sample, type SampleId } from './samples'
 
 export type ModuleId = 'overview' | 'sales' | 'forecast' | 'customers' | 'products' | 'data'
 
@@ -23,6 +24,7 @@ interface Source {
   records: RawRecord[]
   columns: string[]
   bundled: boolean
+  sample?: SampleId
 }
 
 interface AppState {
@@ -45,6 +47,8 @@ interface AppState {
   setTheme: (t: Theme) => void
   loadTable: (name: string, records: RawRecord[], columns: string[], bundled?: boolean) => void
   loadBundled: () => void
+  loadSample: (id: SampleId) => void
+  sampleId: SampleId | null
   remap: (mapping: Mapping, options: Partial<CleanOptions>) => void
   setLoading: (s: string | null) => void
   setError: (s: string | null) => void
@@ -118,12 +122,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const loadTable = useCallback(
-    (name: string, records: RawRecord[], columns: string[], bundled = false) => {
+    (name: string, records: RawRecord[], columns: string[], bundled = false, sample?: Sample) => {
       const next = buildDataset(name, records, columns)
-      setSource({ name, records, columns, bundled })
+      setSource({ name, records, columns, bundled, sample: sample?.id })
       const revCol = next.mapping.revenue ?? next.mapping.unitPrice
       const guessed = revCol ? guessCurrency(records.map((r) => r[revCol])) : null
-      setCurrency(bundled ? 'USD' : guessed ?? 'NONE')
+      setCurrency(sample ? sample.currency : guessed ?? 'NONE')
       adopt(next)
       setError(null)
       setLoading(null)
@@ -133,22 +137,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [adopt],
   )
 
-  const loadBundled = useCallback(() => {
-    setLoading('Loading the sample store')
-    import('../data/superstore_sales.csv?raw')
-      .then((m) => {
-        const t = parseCsvText(m.default)
-        loadTable('Superstore sample (US office supplies, 2015–2018)', t.records, t.columns, true)
-      })
-      .catch((e) => {
-        setError(`The sample dataset could not be loaded: ${e instanceof Error ? e.message : String(e)}`)
-        setLoading(null)
-      })
-  }, [loadTable])
+  const loadSample = useCallback(
+    (id: SampleId) => {
+      const sample = SAMPLES.find((s) => s.id === id) ?? SAMPLES[0]
+      setLoading(`Opening ${sample.name}`)
+      try {
+        localStorage.setItem('retailai-sample', sample.id)
+      } catch {
+        /* the choice just isn't remembered */
+      }
+      fetch(new URL(sample.file, document.baseURI))
+        .then((r) => {
+          if (!r.ok) throw new Error(`${sample.file} returned ${r.status}`)
+          return r.text()
+        })
+        .then((text) => {
+          const t = parseCsvText(text)
+          loadTable(sample.name, t.records, t.columns, true, sample)
+        })
+        .catch((e) => {
+          setError(`The ${sample.name} sample could not be loaded: ${e instanceof Error ? e.message : String(e)}`)
+          setLoading(null)
+        })
+    },
+    [loadTable],
+  )
+  const loadBundled = useCallback(() => loadSample('superstore'), [loadSample])
 
   useEffect(() => {
-    loadBundled()
-  }, [loadBundled])
+    let first: SampleId = 'superstore'
+    try {
+      const saved = localStorage.getItem('retailai-sample') as SampleId | null
+      if (saved && SAMPLES.some((s) => s.id === saved)) first = saved
+    } catch {
+      /* use the default */
+    }
+    loadSample(first)
+  }, [loadSample])
 
   const remap = useCallback(
     (mapping: Mapping, options: Partial<CleanOptions>) => {
@@ -187,7 +212,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppState = {
     source, ds, loading, error, filters, setFilters, resetFilters, module, setModule, report, setReport,
-    compare, setCompare, currency, setCurrency, theme, setTheme, loadTable, loadBundled, remap,
+    compare, setCompare, currency, setCurrency, theme, setTheme, loadTable, loadBundled, loadSample, sampleId: source?.sample ?? null, remap,
     setLoading, setError, printSeq, ...derived,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

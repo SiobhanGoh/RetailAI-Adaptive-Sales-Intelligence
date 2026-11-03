@@ -21,7 +21,7 @@ function TagList({ items, empty, why }: { items: Suggestion[]; empty: string; wh
 }
 
 export function Products() {
-  const { ds, rows, currency, source } = useApp()
+  const { ds, rows, currency, sampleId } = useApp()
   const idx = useMemo(() => (ds?.capabilities.products ? buildIndex(rows) : null), [rows, ds])
   const [query, setQuery] = useState('')
   const byName = useMemo(() => {
@@ -54,7 +54,7 @@ export function Products() {
             { label: 'Products sold', value: String(idx.products.size) },
             { label: 'Orders with 2+ items', value: `${(multiShare * 100).toFixed(0)}%` },
           ],
-          notes: ['These are ideas to browse, not predictions: on later orders in the sample, none beat plain best sellers.'],
+          notes: [sampleId === 'superstore' ? 'These are ideas to browse, not predictions: on later orders in this sample, none beat plain best sellers.' : 'Lists come from shared orders and similar wording, not from a trained model.'],
         }
       : null,
     `pr|${seed}|${rows.length}|${currency}`,
@@ -145,7 +145,7 @@ export function Products() {
         )}
       </div>
 
-      {source?.bundled && (
+      {sampleId === 'superstore' && (
         <p className="note">
           On later orders in this sample store, guessing the other items in a basket from one item worked {evalProducts.popular.hit_rate_at_5_pct}% of the time with plain best sellers, {evalProducts['together+popular'].hit_rate_at_5_pct}% with bought-together and {evalProducts.similar.hit_rate_at_5_pct}% with similar descriptions. Baskets here rarely repeat, so use these lists for browsing ideas rather than as predictions.
         </p>

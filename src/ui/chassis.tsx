@@ -3,6 +3,7 @@ import { gsap } from 'gsap'
 import { scaleLinear } from 'd3-scale'
 import { area, curveMonotoneX } from 'd3-shape'
 import { MODULES, useApp, type ModuleId } from '../state'
+import { KIND_LABEL, SAMPLES } from '../samples'
 import { useReceiptContent } from '../receipt'
 import { Barcode, reducedMotion, useSize } from './primitives'
 import { DIMENSIONS, DIMENSION_LABEL, type Dimension } from '../engine/types'
@@ -12,15 +13,18 @@ import { weekday } from '../engine/values'
 
 // ------------------------------------------------------------------ status chips
 
-export function DisplayBand() {
-  const { ds, filters } = useApp()
+export function DisplayBand({ onPickSample }: { onPickSample: () => void }) {
+  const { ds, filters, sampleId } = useApp()
   const active = Object.values(filters.dims).reduce((a, v) => a + (v?.length ?? 0), 0)
+  const sample = SAMPLES.find((s) => s.id === sampleId)
   return (
     <div className="band" role="status" aria-live="polite">
-      <span className="band-cell band-store" title={ds?.name}>
+      <button type="button" className="band-cell band-store" title="Switch to another sample store" onClick={onPickSample}>
         <i className="lamp" aria-hidden />
-        {ds ? ds.name : 'No data loaded'}
-      </span>
+        <span className="band-store-name">{ds ? ds.name : 'No data loaded'}</span>
+        {sample && <span className={`kind kind-${sample.kind}`}>{KIND_LABEL[sample.kind]}</span>}
+        <span className="band-chev" aria-hidden />
+      </button>
       <span className="band-cell">{ds?.capabilities.dates ? rangeLabel(filters.from, filters.to) : 'Undated rows'}</span>
       {active > 0 && <span className="band-cell band-filter">{plural(active, 'filter')} on</span>}
     </div>
@@ -468,4 +472,60 @@ export function DropZone({ onFile }: { onFile: (f: File) => void }) {
 
 export function weekdayName(day: number) {
   return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][weekday(day)]
+}
+
+// ------------------------------------------------------------------ sample store picker
+
+export function SamplePicker({ open, onClose, onOpenFile }: { open: boolean; onClose: () => void; onOpenFile: () => void }) {
+  const { sampleId, loadSample } = useApp()
+  const dialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const d = dialog.current
+    if (!d) return
+    if (open && !d.open) d.showModal()
+    if (!open && d.open) d.close()
+  }, [open])
+  return (
+    <dialog ref={dialog} className="sheet sheet-samples" onClose={onClose} onClick={(e) => e.target === dialog.current && onClose()} aria-labelledby="samples-title">
+      <div className="sheet-body">
+        <header className="sheet-head">
+          <h2 id="samples-title">Sample stores</h2>
+          <p>Try the app on a ready-made store, or open your own file.</p>
+          <div className="sheet-actions">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
+          </div>
+        </header>
+        <ul className="samples">
+          {SAMPLES.map((s) => (
+            <li key={s.id}>
+              <button
+                type="button"
+                className={`sample ${s.id === sampleId ? 'on' : ''}`}
+                aria-pressed={s.id === sampleId}
+                onClick={() => {
+                  loadSample(s.id)
+                  onClose()
+                }}
+              >
+                <span className={`kind kind-${s.kind}`}>{KIND_LABEL[s.kind]}</span>
+                <strong>{s.name}</strong>
+                <span>{s.blurb}</span>
+                <span className="sample-shows">{s.shows}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          className="btn btn-amber"
+          onClick={() => {
+            onClose()
+            onOpenFile()
+          }}
+        >
+          Open my own file
+        </button>
+      </div>
+    </dialog>
+  )
 }
