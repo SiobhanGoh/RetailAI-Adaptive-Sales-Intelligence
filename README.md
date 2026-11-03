@@ -160,7 +160,7 @@ research/         the original Python pipeline and tests, kept to reproduce arch
 
 - **Samples:** two more sample stores, so features the Superstore file can't show (returns, units, margins, discounts, real baskets, Malaysian geography and festivals) are visible straight away.
 
-Still open: confirming the Superstore sample's licence, checking Kedai Amber's hand-entered festival dates against the official gazette.
+Still open: confirming the Superstore sample's licence and checking Kedai Amber's hand-entered festival dates against the official gazette.
 
 ---
 
