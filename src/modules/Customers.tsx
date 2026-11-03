@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Details, Empty, Fig, Headline, Panel } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Hint, Panel, Term } from '../ui/primitives'
 import { Heat } from '../charts/misc'
 import { SearchBox } from '../ui/SearchBox'
 import { SEGMENTS, cohorts, customerStats, quarterLabel, repeatStats, rfGrid, segmentSummary, type SegmentId } from '../engine/customers'
 import { buildIndex, suggestForCustomer, REASON_LABEL } from '../engine/recommend'
 import { count, downloadCsv, fmtDay, money, pct, plural } from '../format'
+import { customerStory } from '../explain'
 import evaluation from '../../verification/web_evaluation.json'
 
 const SEGMENT_LABELS = SEGMENTS.map((s) => [s.id, s.label] as const)
@@ -33,6 +34,7 @@ export function Customers() {
 
   const champions = segments.find((s) => s.id === 'champions')!
   const atRisk = segments.find((s) => s.id === 'at-risk')!
+  const story = customerStory({ customers: stats.length, atRiskCustomers: atRisk.customers, atRiskShare: atRisk.share, champions: champions.customers })
 
   usePrint(
     stats.length
@@ -61,15 +63,45 @@ export function Customers() {
     <div className="mod mod-customers">
       <header className="mod-head">
         <Headline k={`${stats.length}|${champions.customers}|${atRisk.customers}`}>
-          <p className="hl-line">
-            <Fig value={champions.customers} format={(v) => count(Math.round(v))} /> champions bring {pct(champions.share, 0)} of sales.
-          </p>
-          <p className="hl-line hl-sub">
-            {atRisk.customers ? `${plural(atRisk.customers, 'regular buyer')} ${atRisk.customers === 1 ? 'has' : 'have'} gone quiet and are worth a win-back message. ` : ''}
-            {pct(rep.repeatShare, 0)} of the {plural(stats.length, 'customer')} in this period bought more than once.
-          </p>
+          {story === 'at-risk' ? (
+            <>
+              <p className="hl-line">
+                <Fig value={atRisk.customers} format={(v) => count(Math.round(v))} tone="down" /> regular {atRisk.customers === 1 ? 'buyer has' : 'buyers have'} gone quiet.
+              </p>
+              <p className="hl-line hl-sub">
+                They brought {pct(atRisk.share, 0)} of sales. A win-back message now costs less than finding new customers; {champions.customers ? (
+                  <>
+                    {count(champions.customers)}{' '}
+                    <Term tip="Champions bought recently and often. They are your most valuable regulars: thank them, and ask for reviews or referrals.">champions</Term> still bring {pct(champions.share, 0)}.
+                  </>
+                ) : (
+                  'start with the At risk list below.'
+                )}
+              </p>
+            </>
+          ) : story === 'champions' ? (
+            <>
+              <p className="hl-line">
+                <Fig value={champions.customers} format={(v) => count(Math.round(v))} />{' '}
+                <Term tip="Champions bought recently and often. They are your most valuable regulars: thank them, and ask for reviews or referrals.">champions</Term> bring {pct(champions.share, 0)} of sales.
+              </p>
+              <p className="hl-line hl-sub">
+                {atRisk.customers ? `${plural(atRisk.customers, 'regular buyer')} ${atRisk.customers === 1 ? 'has' : 'have'} gone quiet and ${atRisk.customers === 1 ? 'is' : 'are'} worth a win-back message. ` : ''}
+                {pct(rep.repeatShare, 0)} of the {plural(stats.length, 'customer')} in this period bought more than once.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="hl-line">Most customers here are new or occasional.</p>
+              <p className="hl-line hl-sub">
+                {pct(rep.repeatShare, 0)} of the {plural(stats.length, 'customer')} in this period bought more than once, so a reason to come back matters more than loyalty perks.
+              </p>
+            </>
+          )}
         </Headline>
       </header>
+
+      <Hint id="customers-flow">Tip: pick a group of customers, then a person in it, to see what to offer them next.</Hint>
 
       {/* One flow, left to right: pick a segment, then a customer in it, then see what to offer them. */}
       <div className="seg-strip" role="tablist" aria-label="Customer segments">
@@ -150,7 +182,7 @@ export function Customers() {
                   {person.segment !== seg ? ` In ${segments.find((s) => s.id === person.segment)!.label}.` : ''}
                 </p>
               </header>
-              <ol className="tags" key={person.id}>
+              <ol className="tags tags-swing" key={person.id}>
                 {ideas.map((s, i) => (
                   <li key={s.product} className="tag" style={{ ['--n' as string]: String(i) }}>
                     <span className="tag-name">{s.name}</span>

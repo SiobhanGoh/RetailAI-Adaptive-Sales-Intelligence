@@ -8,6 +8,7 @@ import { breakdown, filterRows, pctChange, shareOfTop, weekEnd } from '../engine
 import { findAnomalies } from '../engine/anomalies'
 import { DIMENSION_LABEL, DIMENSION_PLURAL } from '../engine/types'
 import { count, fmtDay, money, pct, plural } from '../format'
+import { salesStory } from '../explain'
 
 /** A one-time line for newcomers: what this is and that their own file is welcome. */
 function Welcome({ onOpen }: { onOpen: () => void }) {
@@ -125,8 +126,14 @@ export function Overview({ onOpen }: { onOpen: () => void }) {
   const latestAnomaly = anomalies[anomalies.length - 1]
 
   // The receipt carries the notes: things worth knowing that the tickets and chart don't already say.
+  const story =
+    netChange === undefined
+      ? null
+      : salesStory(netChange, cl, mover ? { key: mover.key, delta: mover.delta, amount: `${mover.delta > 0 ? '+' : '−'}${money(Math.abs(mover.delta), currency)}` } : undefined, (k?.net ?? 0) - (c?.net ?? 0))
   const notes: string[] = []
-  if (mover && mover.delta !== 0) notes.push(`${mover.key} ${mover.delta > 0 ? 'grew' : 'fell'} the most: ${mover.delta > 0 ? '+' : '−'}${money(Math.abs(mover.delta), currency)} against the ${cl}.`)
+  if (story?.next) notes.push(`Next: ${story.next}`)
+  else if (latestAnomaly) notes.push('Next: open Shares and unusual weeks on the left for the details.')
+  if (mover && mover.delta !== 0 && !story?.sub) notes.push(`${mover.key} ${mover.delta > 0 ? 'grew' : 'fell'} the most: ${mover.delta > 0 ? '+' : '−'}${money(Math.abs(mover.delta), currency)} against the ${cl}.`)
   if (latestAnomaly) notes.push(`Unusual week ending ${fmtDay(latestAnomaly.end)}: ${money(latestAnomaly.net, currency)} against a usual ${money(latestAnomaly.baseline, currency)}${latestAnomaly.drivers[0] ? `, mostly ${latestAnomaly.drivers[0].key}` : ''}.`)
   if (top20 !== undefined)
     notes.push(
@@ -143,7 +150,6 @@ export function Overview({ onOpen }: { onOpen: () => void }) {
           lines: [
             ...(k.returns < 0 ? [{ label: 'Returns', value: money(k.returns, currency, 'whole'), tone: 'down' as const }] : []),
             ...(k.margin !== undefined ? [{ label: 'Margin', value: pct(k.margin) }] : []),
-            ...(mix[0] ? [{ label: `${mix[0].key.slice(0, 18)} share`, value: pct(mix[0].share, 0) }] : []),
             { label: 'Unusual weeks', value: String(anomalies.length) },
           ],
           notes,
@@ -190,11 +196,21 @@ export function Overview({ onOpen }: { onOpen: () => void }) {
       <header className="mod-head">
         <Headline k={`${k.net}|${filters.from}|${filters.to}|${compare}`}>
           <p className="hl-line">
-            {netChange === undefined
-              ? `Sales${hasDates ? ` from ${fmtDay(filters.from)} to ${fmtDay(filters.to)}` : ''}.`
-              : `Sales are ${netChange >= 0 ? 'up' : 'down'} ${Math.abs(netChange * 100).toFixed(1)}% on the ${cl}.`}
+            {!story ? (
+              `Sales${hasDates ? ` from ${fmtDay(filters.from)} to ${fmtDay(filters.to)}` : ''}.`
+            ) : (
+              <>
+                {story.lead[0]}
+                <b className={`fig fig-tone tone-${story.tone}`}>{story.lead[1]}</b>
+                {story.lead[2]}
+              </>
+            )}
           </p>
-          {mix[0] && <p className="hl-line hl-sub">{mix[0].key} brings the most, at {pct(mix[0].share, 0)} of sales.</p>}
+          {story?.sub ? (
+            <p className="hl-line hl-sub">{story.sub}</p>
+          ) : (
+            mix[0] && <p className="hl-line hl-sub">{mix[0].key} {story?.tone === 'flat' ? 'still brings' : 'brings'} the most, at {pct(mix[0].share, 0)} of sales.</p>
+          )}
         </Headline>
         {hasDates && (
           <Segmented
@@ -214,7 +230,7 @@ export function Overview({ onOpen }: { onOpen: () => void }) {
       <section className={`anchor ${showChart ? '' : 'anchor-solo'}`} aria-label="Net sales">
         <div className="anchor-lead">
           <span className="anchor-label">Net sales</span>
-          <Readout value={k.net} currency={currency} size="xl" label={`Net sales ${money(k.net, currency, 'whole')}`} />
+          <Readout value={k.net} currency={currency} size="xl" flip label={`Net sales ${money(k.net, currency, 'whole')}`} />
           <div className="anchor-foot">
             {hasDates && <Delta value={netChange} label={cl} was={c ? money(c.net, currency) : undefined} />}
             {k.returns < 0 && (

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { gsap } from 'gsap'
 import { AppProvider, MODULES, useApp } from './state'
 import { ReceiptProvider } from './receipt'
-import { DisplayBand, DropZone, FilterCard, FilterChips, ReceiptPrinter, SamplePicker, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
+import { DisplayBand, DropZone, FilterCard, FilterChips, FilterNotice, ReceiptPrinter, SamplePicker, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
 import { reducedMotion } from './ui/primitives'
 import { Overview } from './modules/Overview'
 import { Sales } from './modules/Sales'
@@ -33,6 +33,17 @@ function Screen({ onOpen }: { onOpen: () => void }) {
   const { module, report, loading, error, setError, ds } = useApp()
   const screen = useRef<HTMLDivElement>(null)
   const [more, setMore] = useState(false)
+  // Switching to another store sweeps a soft wash across the screen so the change registers.
+  const [wash, setWash] = useState(0)
+  const firstDs = useRef(true)
+  useEffect(() => {
+    if (!ds) return
+    if (firstDs.current) {
+      firstDs.current = false
+      return
+    }
+    setWash((w) => w + 1)
+  }, [ds])
   const first = useRef(true)
   // Every screen opens at its top, not wherever the last one was scrolled to.
   useLayoutEffect(() => {
@@ -63,7 +74,7 @@ function Screen({ onOpen }: { onOpen: () => void }) {
   useLayoutEffect(() => {
     if (reducedMotion() || !screen.current) return
     gsap.fromTo(screen.current.querySelectorAll('.mod > *, .report > *'), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.55, stagger: 0.06, ease: 'power3.out', clearProps: 'transform,opacity' })
-  }, [module, report])
+  }, [module, report, ds])
 
   const body = useMemo(() => {
     if (!ds) return null
@@ -99,8 +110,10 @@ function Screen({ onOpen }: { onOpen: () => void }) {
             {loading}
           </div>
         )}
+        {!report && module !== 'sales' && <FilterNotice />}
         {body}
       </div>
+      {wash > 0 && !reducedMotion() && <div key={wash} className="wash" aria-hidden />}
       {more && (
         <button type="button" className="more-below" onClick={() => screen.current?.scrollBy({ top: screen.current.clientHeight * 0.75, behavior: reducedMotion() ? 'auto' : 'smooth' })}>
           More below

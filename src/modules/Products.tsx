@@ -3,7 +3,7 @@ import { PairWeb } from '../charts/misc'
 import { SearchBox } from '../ui/SearchBox'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Details, Empty, Fig, Headline, Panel, SaveCsv } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Hint, Panel, SaveCsv } from '../ui/primitives'
 import { buildIndex, similarProducts, subcategoryAffinity, suggestFor, togetherWith, topPairs, type Suggestion } from '../engine/recommend'
 import { downloadCsv, money, plural, shorten } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
@@ -11,9 +11,9 @@ import evaluation from '../../verification/web_evaluation.json'
 function TagList({ items, empty, why }: { items: Suggestion[]; empty: string; why: (s: Suggestion) => string }) {
   if (!items.length) return <p className="quiet">{empty}</p>
   return (
-    <ol className="tags">
-      {items.map((s) => (
-        <li key={s.product} className="tag">
+    <ol className="tags tags-swing" key={items.map((s) => s.product).join('|')}>
+      {items.map((s, i) => (
+        <li key={s.product} className="tag" style={{ ['--n' as string]: String(i) }}>
           <span className="tag-name">{s.name}</span>
           <span className="tag-why">{why(s)}</span>
         </li>
@@ -140,6 +140,8 @@ export function Products() {
           )}
         </div>
       </header>
+
+      <Hint id="products-find">Tip: search any product or narrow by category. The three lists show what sells with it, best sellers like it, and similar items.</Hint>
 
       <div className="trio">
         <Panel bare title="Bought in the same order">

@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Details, Empty, Fig, Headline, Panel, Pill, Segmented } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Hint, Panel, Pill, Segmented, Term } from '../ui/primitives'
 import { Scope } from '../charts/Scope'
 import { modelWeeks, weeklySeries } from '../engine/aggregate'
+import { forecastTrust } from '../explain'
 import { MAX_H, MODEL_LABEL, availableModels, backtest, runForecast, type ModelId } from '../engine/forecast'
 import { DIMENSION_LABEL, type Dimension } from '../engine/types'
 import { downloadCsv, fmtDay, money, pct } from '../format'
@@ -98,7 +99,8 @@ export function Forecast() {
               </p>
               <p className="hl-line hl-sub">
                 {lastYear !== null ? <Pill value={(total - base) / Math.max(1, base)} label="the same weeks last year" /> : null}
-                {' '}Likely range {money(result.forecast.reduce((a, p) => a + p.lo, 0), currency)} to {money(result.forecast.reduce((a, p) => a + p.hi, 0), currency)}.
+                {' '}
+                <Term tip="8 in 10 past weeks landed inside this range when the same method was replayed on your data. A wider range means less certainty.">Likely range</Term> {money(result.forecast.reduce((a, p) => a + p.lo, 0), currency)} to {money(result.forecast.reduce((a, p) => a + p.hi, 0), currency)}. {chosenScore ? forecastTrust(chosenScore.wape) : ''}
               </p>
             </>
           ) : (
@@ -126,6 +128,7 @@ export function Forecast() {
           />
         </div>
       </header>
+      <Hint id="forecast-how">Tip: choose 4, 8 or 12 weeks ahead. The shaded band is the likely range, and the dashed line is the forecast.</Hint>
 
       {!result.ok ? (
         <Empty title="No forecast for this selection">{result.reason}</Empty>

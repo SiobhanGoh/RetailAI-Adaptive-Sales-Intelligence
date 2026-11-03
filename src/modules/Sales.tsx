@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Details, Empty, Fig, Headline, Panel, SaveCsv, Segmented } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Hint, Panel, SaveCsv, Segmented } from '../ui/primitives'
 import { Heat, Pareto, ShipBars, TagBars } from '../charts/misc'
 import { breakdown, filterRows, paretoCurve, rhythm, shareOfTop, shippingDays } from '../engine/aggregate'
 import { DIMENSION_LABEL, DIMENSION_PLURAL, type Dimension } from '../engine/types'
 import { downloadCsv, money, pct, shorten } from '../format'
+import { mixStory } from '../explain'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -114,6 +115,14 @@ export function Sales() {
             <p className="hl-line">
               The {pickedSlices.length} you picked bring <Fig value={pickedShare} format={(v) => pct(v, 1)} /> of sales.
             </p>
+          ) : lead && mixStory(lead, shown.length) === 'dominant' ? (
+            <p className="hl-line">
+              <b className="fig fig-name">{shorten(lead.key, 40)}</b> dominates, with <Fig value={lead.share} format={(v) => pct(v, 0)} /> of sales.
+            </p>
+          ) : lead && mixStory(lead, shown.length) === 'even' ? (
+            <p className="hl-line">
+              Sales are spread evenly: <b className="fig fig-name">{shorten(lead.key, 32)}</b> leads with only <Fig value={lead.share} format={(v) => pct(v, 0)} />.
+            </p>
           ) : lead && (
             <p className="hl-line">
               <Fig value={lead.share} format={(v) => pct(v, 0)} /> of sales came from <b className="fig fig-name">{shorten(lead.key, 56)}</b>.
@@ -126,6 +135,8 @@ export function Sales() {
         </Headline>
         {options.length > 1 && <Segmented label="Group sales by" value={active} onChange={setDim} options={options} size="sm" />}
       </header>
+
+      <Hint id="sales-pick">Tip: pick any bar to show only that group on every screen. Pick it again, press Esc, or use Show all to go back.</Hint>
 
       <Panel
         title={shown.length > 20 ? `Top 20 of ${shown.length.toLocaleString('en')} ${unit}` : `All ${shown.length} ${unit}`}

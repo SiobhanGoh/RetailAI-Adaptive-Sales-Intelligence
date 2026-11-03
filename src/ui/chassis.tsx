@@ -39,10 +39,23 @@ const press = (el: HTMLElement) => {
 
 export function TicketRail() {
   const { module, setModule, report } = useApp()
+  const tickets = useRef<HTMLDivElement>(null)
+  const [glow, setGlow] = useState<{ left: number; width: number } | null>(null)
+  useLayoutEffect(() => {
+    const place = () => {
+      const on = tickets.current?.querySelector<HTMLElement>('.order.on')
+      setGlow(on ? { left: on.offsetLeft, width: on.offsetWidth } : null)
+    }
+    place()
+    const ro = new ResizeObserver(place)
+    if (tickets.current) ro.observe(tickets.current)
+    return () => ro.disconnect()
+  }, [module, report])
   return (
     <nav className="rail" aria-label="Screens">
       <span className="rail-bar" aria-hidden />
-      <div className="rail-tickets">
+      <div className="rail-tickets" ref={tickets}>
+        {glow && <span className="rail-glow" aria-hidden style={{ left: glow.left, width: glow.width }} />}
         {MODULES.map((m) => {
           const on = module === m.id && !report
           return (
@@ -92,6 +105,25 @@ export function FilterCard({ open, onOpen, onClose }: { open: boolean; onOpen: (
         {chips.length ? <b className="filtercard-count">{chips.length}</b> : <kbd aria-hidden>F</kbd>}
       </button>
       {open && <FilterDrop onClose={onClose} />}
+    </div>
+  )
+}
+
+/** A reminder at the top of every screen while filters are on, so changed numbers make sense. */
+export function FilterNotice() {
+  const { chips, clear } = useFilterChips()
+  if (!chips.length) return null
+  const names = chips.map((c) => c.v)
+  const text = names.length <= 2 ? names.join(' and ') : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`
+  return (
+    <div className="filter-notice" role="status">
+      <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden>
+        <path d="M3 4.5h14l-5.5 6.5v4.5l-3 1.5v-6z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      </svg>
+      <span>
+        Showing only <b>{text}</b>. Every figure on this screen is filtered.
+      </span>
+      <button type="button" onClick={clear}>Show all</button>
     </div>
   )
 }
@@ -191,6 +223,7 @@ export function ReceiptPrinter() {
 
   return (
     <aside className={`printer ${printing ? 'printing' : ''}`} aria-label="Notes for this screen">
+      <p className="printer-label">Notes on this screen</p>
       <div className="printer-slot" aria-hidden>
         <span className="printer-light" />
       </div>

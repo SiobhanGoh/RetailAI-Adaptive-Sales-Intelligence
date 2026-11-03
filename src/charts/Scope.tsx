@@ -1,8 +1,8 @@
 // The "oscilloscope": a glowing weekly line with optional forecast fan and event markers.
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { scaleLinear } from 'd3-scale'
 import { area, line, curveMonotoneX } from 'd3-shape'
-import { useSize } from '../ui/primitives'
+import { reducedMotion, useSize } from '../ui/primitives'
 import { fmtDay, fmtMonth, money, type Currency } from '../format'
 
 export interface ScopePoint {
@@ -61,11 +61,51 @@ export function Scope({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points, forecast, compare, height])
 
+  // When the data changes, the line eases from its old shape to the new one instead of redrawing.
+  // Both shapes are sampled at the same screen positions, so any two periods can be blended.
+  const drawKey = points.length ? `${points.length}-${points[0].end}-${Math.round(points[points.length - 1].y)}` : ''
+  const N = 140
+  const sample = useMemo(() => {
+    if (points.length < 2) return null
+    const xs = points.map((p) => x(p.end))
+    const ys = points.map((p) => y(p.y))
+    const out: number[] = []
+    let j = 0
+    for (let i = 0; i < N; i++) {
+      const px = pad.l + (i / (N - 1)) * (width - pad.l - pad.r)
+      while (j < xs.length - 2 && xs[j + 1] < px) j++
+      const t = xs[j + 1] === xs[j] ? 0 : Math.min(1, Math.max(0, (px - xs[j]) / (xs[j + 1] - xs[j])))
+      out.push(ys[j] + (ys[j + 1] - ys[j]) * t)
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawKey, width, height, y])
+  const prev = useRef<number[] | null>(null)
+  const morphed = useRef<string>('')
+  const [blend, setBlend] = useState<number[] | null>(null)
+  useEffect(() => {
+    const from = prev.current
+    prev.current = sample
+    if (!from || !sample || reducedMotion()) return
+    morphed.current = drawKey
+    const t0 = performance.now()
+    let raf = 0
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / 650)
+      const e = 1 - Math.pow(1 - k, 3)
+      setBlend(sample.map((v, i) => from[i] + (v - from[i]) * e))
+      if (k < 1) raf = requestAnimationFrame(step)
+      else setBlend(null)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sample])
+
   if (!points.length) return <div ref={ref} className="scope" style={{ height }} />
-  // Re-draw the line (and replay its draw-in) whenever the data changes.
-  const drawKey = `${points.length}-${points[0].end}-${Math.round(points[points.length - 1].y)}`
 
   const ln = line<ScopePoint>().x((p) => x(p.end)).y((p) => y(p.y)).curve(curveMonotoneX)
+  const lnXY = line<[number, number]>().curve(curveMonotoneX)
   const fill = area<ScopePoint>().x((p) => x(p.end)).y0(y(0)).y1((p) => y(p.y)).curve(curveMonotoneX)
   const band = area<ScopeBand>().x((p) => x(p.end)).y0((p) => y(p.lo)).y1((p) => y(p.hi)).curve(curveMonotoneX)
   const last = points[points.length - 1]
@@ -119,10 +159,25 @@ export function Scope({
           </text>
         ))}
         {compare && compare.length > 1 && <path d={ln(compare) ?? ''} className="scope-compare" />}
-        <path key={`f${drawKey}`} d={fill(points) ?? ''} fill={`url(#fill-${id})`} className="scope-fill" />
-        <path key={`l${drawKey}`} d={ln(points) ?? ''} pathLength={1} className="scope-line" filter={`url(#glow-${id})`} />
+        {blend ? (
+          <>
+            <path d={(lnXY(blend.map((v, i) => [pad.l + (i / (N - 1)) * (width - pad.l - pad.r), v])) ?? '') + `L${width - pad.r},${y(0)}L${pad.l},${y(0)}Z`} fill={`url(#fill-${id})`} />
+            <path d={lnXY(blend.map((v, i) => [pad.l + (i / (N - 1)) * (width - pad.l - pad.r), v])) ?? ''} className="scope-line scope-line-still" filter={`url(#glow-${id})`} />
+          </>
+        ) : (
+          <>
+            <path key={`f${drawKey}`} d={fill(points) ?? ''} fill={`url(#fill-${id})`} className={morphed.current === drawKey ? '' : 'scope-fill'} />
+            <path key={`l${drawKey}`} d={ln(points) ?? ''} pathLength={1} className={`scope-line ${morphed.current === drawKey ? 'scope-line-still' : ''}`} filter={`url(#glow-${id})`} />
+          </>
+        )}
         {fcBand && <path d={band(fcBand) ?? ''} className="scope-band" />}
         {fcLine && <path d={ln(fcLine) ?? ''} className="scope-forecast" />}
+        {!blend && !forecast?.length && (
+          <g className="scope-now" transform={`translate(${x(last.end)},${y(last.y)})`} aria-hidden>
+            <circle r={9} className="scope-now-ring" />
+            <circle r={3.6} className="scope-now-dot" />
+          </g>
+        )}
         {points.filter((p) => p.partial).map((p) => (
           <circle key={`p${p.end}`} cx={x(p.end)} cy={y(p.y)} r={3.5} className="scope-partial" />
         ))}

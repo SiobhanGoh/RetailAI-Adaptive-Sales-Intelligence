@@ -23,11 +23,11 @@ export function useSize<T extends HTMLElement>(): [(el: T | null) => void, { w: 
 }
 
 /** A large figure that counts smoothly to its new value. */
-export function Readout({ value, currency, kind = 'money', size = 'md', label }: { value: number; currency?: Currency; kind?: 'money' | 'count' | 'pct'; size?: 'sm' | 'md' | 'lg' | 'xl'; label: string }) {
+export function Readout({ value, currency, kind = 'money', size = 'md', label, flip = false }: { value: number; currency?: Currency; kind?: 'money' | 'count' | 'pct'; size?: 'sm' | 'md' | 'lg' | 'xl'; label: string; flip?: boolean }) {
   const [shown, setShown] = useState(value)
   const prev = useRef(value)
   useEffect(() => {
-    if (reducedMotion() || prev.current === value) {
+    if (flip || reducedMotion() || prev.current === value) {
       setShown(value)
       prev.current = value
       return
@@ -56,7 +56,18 @@ export function Readout({ value, currency, kind = 'money', size = 'md', label }:
   return (
     <span className={`readout readout-${size}`} role="img" aria-label={label}>
       {prefix && <span className="readout-unit">{prefix}</span>}
-      <span className="readout-digits">{digits}</span>
+      {flip ? (
+        // Split-flap: only the characters that changed flip over, like a departure board.
+        <span className="readout-digits readout-flap">
+          {[...digits].map((ch, i) => (
+            <span key={`${digits.length - i}-${ch}`} className={/[0-9]/.test(ch) ? 'flap' : 'flap-sep'}>
+              {ch}
+            </span>
+          ))}
+        </span>
+      ) : (
+        <span className="readout-digits">{digits}</span>
+      )}
       {suffix && <span className="readout-unit readout-suffix">{suffix}</span>}
     </span>
   )
@@ -502,6 +513,36 @@ export function Spark({ values, label }: { values: number[]; label: string }) {
 }
 
 /** A dismissible first-visit tip, remembered on this device. */
+/** A word with a small "?" that explains it in plain language. */
+export function Term({ children, tip }: { children: ReactNode; tip: string }) {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    addEventListener('pointerdown', away)
+    addEventListener('keydown', key)
+    return () => {
+      removeEventListener('pointerdown', away)
+      removeEventListener('keydown', key)
+    }
+  }, [open])
+  return (
+    <span className="term" ref={box}>
+      {children}
+      <button type="button" className="term-q" aria-expanded={open} aria-label={`What does this mean?`} onClick={() => setOpen((v) => !v)}>
+        ?
+      </button>
+      {open && (
+        <span className="term-pop" role="tooltip">
+          {tip}
+        </span>
+      )}
+    </span>
+  )
+}
+
 export function Hint({ id, children }: { id: string; children: ReactNode }) {
   const [hidden, setHidden] = useState(() => {
     try {
