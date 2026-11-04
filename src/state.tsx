@@ -6,6 +6,7 @@ import { filterRows, kpis, comparisons, weeklySeries, type Filters, type Kpis, t
 import { guessCurrency, type Currency } from './format'
 import { SAMPLES, type Sample, type SampleId } from './samples'
 import { decodeView, encodeView } from './share'
+import { nameForUrl, readLink } from './live'
 import { DIMENSIONS, type Dimension } from './engine/types'
 
 export type ModuleId = 'overview' | 'sales' | 'forecast' | 'customers' | 'products' | 'data'
@@ -33,6 +34,9 @@ interface Source {
   columns: string[]
   bundled: boolean
   sample?: SampleId
+  /** Set when the data comes from a live link; it is read again on every visit. */
+  url?: string
+  readAt?: number
 }
 
 interface AppState {
@@ -58,6 +62,11 @@ interface AppState {
   loadTable: (name: string, records: RawRecord[], columns: string[], bundled?: boolean) => void
   loadBundled: () => void
   loadSample: (id: SampleId) => void
+  /** Open a Google Sheet published as CSV, or any CSV link the browser may read. */
+  /** Resolves to null when the sheet opened, or to the reason it could not. */
+  loadUrl: (link: string) => Promise<string | null>
+  /** True when the view can be written into a link: sample stores and live links. */
+  shareable: boolean
   sampleId: SampleId | null
   remap: (mapping: Mapping, options: Partial<CleanOptions>) => void
   setLoading: (s: string | null) => void
@@ -136,9 +145,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const loadTable = useCallback(
-    (name: string, records: RawRecord[], columns: string[], bundled = false, sample?: Sample) => {
+    (name: string, records: RawRecord[], columns: string[], bundled = false, sample?: Sample, url?: string) => {
       const next = buildDataset(name, records, columns)
-      setSource({ name, records, columns, bundled, sample: sample?.id })
+      setSource({ name, records, columns, bundled, sample: sample?.id, url, readAt: url ? Date.now() : undefined })
       const revCol = next.mapping.revenue ?? next.mapping.unitPrice
       const guessed = revCol ? guessCurrency(records.map((r) => r[revCol])) : null
       setCurrency(sample ? sample.currency : guessed ?? 'NONE')
@@ -146,8 +155,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setError(null)
       setLoading(null)
       setReport(false)
-      setModuleRaw(bundled ? 'overview' : 'data')
-      if (bundled && pendingView) {
+      setModuleRaw(bundled || url ? 'overview' : 'data')
+      if ((bundled || url) && pendingView) {
         const pv = pendingView
         pendingView = null
         if (pv.from !== undefined && pv.to !== undefined) {
@@ -194,6 +203,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
   const loadBundled = useCallback(() => loadSample('superstore'), [loadSample])
 
+  const hasData = useRef(false)
+  hasData.current = !!ds
+  const loadUrl = useCallback(
+    async (link: string) => {
+      setLoading('Reading the linked sheet')
+      try {
+        const text = await readLink(link)
+        const t = parseCsvText(text)
+        if (!t.records.length) throw new Error('The sheet has a header row but no data rows yet.')
+        loadTable(nameForUrl(link), t.records, t.columns, false, undefined, link)
+        try {
+          localStorage.setItem('retailai-sample', 'live')
+          localStorage.setItem('retailai-live-url', link)
+        } catch {
+          /* it just won't reopen by itself next time */
+        }
+        return null
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        setError(msg)
+        setLoading(null)
+        // With nothing on screen yet, fall back to a sample so the console is never empty.
+        if (!hasData.current) loadSample('superstore')
+        return msg
+      }
+    },
+    [loadTable, loadSample],
+  )
+
   useEffect(() => {
     let first: SampleId = 'superstore'
     try {
@@ -203,8 +241,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       /* use the default */
     }
     if (pendingView?.sample && SAMPLES.some((s) => s.id === pendingView!.sample)) first = pendingView.sample as SampleId
-    loadSample(first)
-  }, [loadSample])
+    // A shared live link, or the live sheet opened last time, is read fresh.
+    let live: string | null = pendingView?.src ?? null
+    if (!live && !pendingView?.sample) {
+      try {
+        if (localStorage.getItem('retailai-sample') === 'live') live = localStorage.getItem('retailai-live-url')
+      } catch {
+        /* no saved link */
+      }
+    }
+    if (live) loadUrl(live)
+    else loadSample(first)
+  }, [loadSample, loadUrl])
 
   const remap = useCallback(
     (mapping: Mapping, options: Partial<CleanOptions>) => {
@@ -246,11 +294,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // and the address bar is always shareable. Views of uploaded files stay out of the link.
   useEffect(() => {
     if (!ds || !Number.isFinite(filters.from)) return
-    if (!source?.bundled) {
+    if (!source?.bundled && !source?.url) {
       if (location.hash) history.replaceState(history.state, '', location.pathname + location.search)
       return
     }
-    const h = encodeView({ sample: source.sample, module, from: filters.from, to: filters.to, dims: filters.dims as Record<string, string[]>, compare })
+    const h = encodeView({ sample: source.sample, src: source.url, module, from: filters.from, to: filters.to, dims: filters.dims as Record<string, string[]>, compare })
     history.replaceState(history.state, '', h ? `#${h}` : location.pathname + location.search)
   }, [ds, source, module, filters, compare])
 
@@ -278,7 +326,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppState = {
     source, ds, loading, error, filters, setFilters, pickDims, resetFilters, module, setModule, report, setReport,
-    compare, setCompare, currency, setCurrency, theme, setTheme, loadTable, loadBundled, loadSample, sampleId: source?.sample ?? null, remap,
+    compare, setCompare, currency, setCurrency, theme, setTheme, loadTable, loadBundled, loadSample, loadUrl, shareable: !!(source?.bundled || source?.url), sampleId: source?.sample ?? null, remap,
     setLoading, setError, printSeq, ...derived,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

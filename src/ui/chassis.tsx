@@ -7,6 +7,7 @@ import { MODULES, useApp, type ModuleId } from '../state'
 import { KIND_LABEL, SAMPLES } from '../samples'
 import { useReceiptContent } from '../receipt'
 import { Barcode, reducedMotion, useSize } from './primitives'
+import { applyLang, currentLang, type Lang } from '../i18n'
 import { DIMENSIONS, DIMENSION_LABEL, type Dimension } from '../engine/types'
 import { fmtDay, fmtMonth, plural, rangeLabel } from '../format'
 import { parseCsvText, tableFromMatrix } from '../engine/load'
@@ -15,7 +16,7 @@ import { dayToISO, weekday } from '../engine/values'
 // ------------------------------------------------------------------ status chips
 
 export function DisplayBand({ onPickSample }: { onPickSample: () => void }) {
-  const { ds, filters, sampleId } = useApp()
+  const { ds, filters, sampleId, source } = useApp()
   const sample = SAMPLES.find((s) => s.id === sampleId)
   return (
     <div className="band" role="status" aria-live="polite">
@@ -23,6 +24,7 @@ export function DisplayBand({ onPickSample }: { onPickSample: () => void }) {
         <i className="lamp" aria-hidden />
         <span className="band-store-name">{ds ? ds.name : 'No data loaded'}</span>
         {sample && <span className={`kind kind-${sample.kind}`}>{KIND_LABEL[sample.kind]}</span>}
+        {source?.url && <span className="kind kind-live">Live link</span>}
         <span className="band-chev" aria-hidden />
       </button>
       <span className="band-cell">{ds?.capabilities.dates ? rangeLabel(filters.from, filters.to) : 'Undated rows'}</span>
@@ -178,12 +180,39 @@ export function FilterChips({ onOpen }: { onOpen: () => void }) {
   )
 }
 
+/** EN / BM switch. Its own label is never translated, so it always names the other language. */
+export function LangSwitch() {
+  const [lang, setLang] = useState<Lang>(currentLang())
+  useEffect(() => {
+    const on = (e: Event) => setLang((e as CustomEvent<Lang>).detail)
+    addEventListener('retailai-lang', on)
+    return () => removeEventListener('retailai-lang', on)
+  }, [])
+  const next: Lang = lang === 'ms' ? 'en' : 'ms'
+  return (
+    <button
+      type="button"
+      className="btn btn-metal btn-icon btn-lang"
+      data-no-i18n
+      lang={next === 'ms' ? 'ms' : 'en'}
+      aria-label={next === 'ms' ? 'Tukar ke Bahasa Malaysia' : 'Switch to English'}
+      title={next === 'ms' ? 'Bahasa Malaysia' : 'English'}
+      onClick={() => {
+        applyLang(next)
+        dispatchEvent(new CustomEvent('retailai-toast', { detail: next === 'ms' ? 'Bahasa Malaysia dihidupkan. Terjemahan ini masih draf; nama produk dan kategori kekal seperti dalam fail.' : 'Switched to English.' }))
+      }}
+    >
+      {next === 'ms' ? 'BM' : 'EN'}
+    </button>
+  )
+}
+
 export function Utilities({ onUpload }: { onUpload: () => void }) {
-  const { setReport, report, theme, setTheme, source } = useApp()
+  const { setReport, report, theme, setTheme, source, shareable } = useApp()
   const copyLink = () => {
     navigator.clipboard
       ?.writeText(location.href)
-      .then(() => dispatchEvent(new CustomEvent('retailai-toast', { detail: 'Link copied. It opens this store, period, filters and screen.' })))
+      .then(() => dispatchEvent(new CustomEvent('retailai-toast', { detail: source?.url ? 'Link copied. It opens this view and reads the same sheet, so anyone with it sees the latest rows.' : 'Link copied. It opens this store, period, filters and screen.' })))
       .catch(() => dispatchEvent(new CustomEvent('retailai-toast', { detail: 'Copying was blocked; copy the address bar instead.' })))
   }
   return (
@@ -196,7 +225,7 @@ export function Utilities({ onUpload }: { onUpload: () => void }) {
           </g>
         </svg>
       </button>
-      {source?.bundled && (
+      {shareable && (
         <button type="button" className="btn btn-metal btn-icon" onClick={copyLink} aria-label="Copy a link to this view" title="Copy a link that opens exactly this view: store, period, filters and screen">
           <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
             <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -212,6 +241,7 @@ export function Utilities({ onUpload }: { onUpload: () => void }) {
       <button type="button" className="btn btn-amber" onClick={onUpload} title="Open your own CSV or Excel file. Shortcut: U">
         Open a file
       </button>
+      <LangSwitch />
       <button
         type="button"
         className="btn btn-metal btn-icon"
@@ -850,8 +880,11 @@ export function weekdayName(day: number) {
 // ------------------------------------------------------------------ sample store picker
 
 export function SamplePicker({ open, onClose, onOpenFile }: { open: boolean; onClose: () => void; onOpenFile: () => void }) {
-  const { sampleId, loadSample } = useApp()
+  const { sampleId, loadSample, loadUrl, source } = useApp()
   const dialog = useRef<HTMLDialogElement>(null)
+  const [link, setLink] = useState(source?.url ?? '')
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
   useEffect(() => {
     const d = dialog.current
     if (!d) return
@@ -888,16 +921,49 @@ export function SamplePicker({ open, onClose, onOpenFile }: { open: boolean; onC
             </li>
           ))}
         </ul>
-        <button
-          type="button"
-          className="btn btn-amber"
-          onClick={() => {
-            onClose()
-            onOpenFile()
-          }}
-        >
-          Open my own file
-        </button>
+        <div className="samples-own">
+          <button
+            type="button"
+            className="btn btn-amber"
+            onClick={() => {
+              onClose()
+              onOpenFile()
+            }}
+          >
+            Open my own file
+          </button>
+          <form
+            className="live-form"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              if (!link.trim() || busy) return
+              setBusy(true)
+              setProblem(null)
+              const err = await loadUrl(link.trim())
+              setBusy(false)
+              if (err) setProblem(err)
+              else onClose()
+            }}
+          >
+            <label htmlFor="live-link">
+              <span className="kind kind-live">Live</span> Or keep it up to date from a Google Sheet
+            </label>
+            <div className="live-row">
+              <input id="live-link" className="field" type="url" inputMode="url" placeholder="Paste a Google Sheet or CSV link" value={link} onChange={(e) => setLink(e.target.value)} />
+              <button type="submit" className="btn btn-sticker" disabled={busy || !link.trim()}>
+                {busy ? 'Reading' : 'Open link'}
+              </button>
+            </div>
+            {problem && (
+              <p className="live-problem" role="alert">
+                {problem}
+              </p>
+            )}
+            <p className="fine">
+              In Google Sheets choose File, Share, Publish to web, pick CSV, and paste the link here. RetailAI reads it again every time you open the console, so the numbers stay current. Links you copy from here include the sheet address.
+            </p>
+          </form>
+        </div>
       </div>
     </dialog>
   )

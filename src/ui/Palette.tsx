@@ -13,7 +13,7 @@ interface Entry extends SearchItem {
 /** The jump bar: one box that reaches every screen, action, period, filter value, product and
  *  customer. Opens with Ctrl+K (or its button); type a few letters and press Enter. */
 export function Palette({ onUpload, onFilters, onSamples }: { onUpload: () => void; onFilters: () => void; onSamples: () => void }) {
-  const { ds, source, filters, setFilters, pickDims, setModule, setReport, theme, setTheme, currency } = useApp()
+  const { ds, source, shareable, loadUrl, filters, setFilters, pickDims, setModule, setReport, theme, setTheme, currency } = useApp()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -40,7 +40,8 @@ export function Palette({ onUpload, onFilters, onSamples }: { onUpload: () => vo
     out.push({ id: 'act-filter', label: 'Filter the data', sub: 'Regions, categories and more', group: 'Actions', run: onFilters })
     out.push({ id: 'act-store', label: 'Switch sample store', sub: 'Superstore, UK online, Kedai Amber', group: 'Actions', run: onSamples })
     out.push({ id: 'act-theme', label: theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode', group: 'Actions', run: () => setTheme(theme === 'light' ? 'dark' : 'light') })
-    if (source?.bundled)
+    if (source?.url) out.push({ id: 'act-reread', label: 'Read the sheet again', sub: 'Fetch the latest rows from the live link', group: 'Actions', run: () => loadUrl(source.url!) })
+    if (shareable)
       out.push({
         id: 'act-link',
         label: 'Copy a link to this view',
@@ -116,7 +117,7 @@ export function Palette({ onUpload, onFilters, onSamples }: { onUpload: () => vo
     }
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ds, source, filters, theme, currency])
+  }, [ds, source, shareable, filters, theme, currency])
 
   const GROUPS = ['Screens', 'Actions', 'Periods', 'Filters', 'Products', 'Customers']
   const CAP: Record<string, number> = { Screens: 7, Actions: 6, Periods: 4, Filters: 6, Products: 5, Customers: 5 }

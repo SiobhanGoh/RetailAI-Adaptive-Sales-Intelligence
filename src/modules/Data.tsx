@@ -13,7 +13,7 @@ const KEY_ROLES: Role[] = ['orderDate', 'revenue', 'unitPrice', 'quantity', 'pro
 const CONF_LABEL = { exact: 'Matched', likely: 'Likely', guess: 'Best guess' } as const
 
 export function Data({ onOpen }: { onOpen: () => void }) {
-  const { ds, source, remap, currency, setCurrency, loadBundled, sampleId, setModule } = useApp()
+  const { ds, source, remap, currency, setCurrency, loadBundled, loadUrl, sampleId, setModule } = useApp()
   const sample = SAMPLES.find((s) => s.id === sampleId)
   const [draft, setDraft] = useState<Mapping>({})
   useEffect(() => setDraft(ds?.mapping ?? {}), [ds])
@@ -26,7 +26,7 @@ export function Data({ onOpen }: { onOpen: () => void }) {
           lines: [
             { label: 'Dates read as', value: ds.options.dateConvention === 'dmy' ? 'day/month/year' : 'month/day/year' },
             { label: 'Revenue from', value: ds.revenueSource === 'revenue' ? (ds.mapping.revenue ?? '') : ds.revenueSource },
-            { label: 'Stays in', value: 'this browser tab' },
+            source?.url ? { label: 'Read from', value: 'the live link' } : { label: 'Stays in', value: 'this browser tab' },
           ],
           notes: [ds.quality.some((q) => q.level !== 'info') ? 'Check the column matching: some rows need a look.' : 'Open the Overview: every column needed is understood.'],
         }
@@ -48,7 +48,7 @@ export function Data({ onOpen }: { onOpen: () => void }) {
           </p>
           <p className="hl-line hl-sub">
             {warnings ? `${plural(warnings, 'thing')} to check below. ` : 'Nothing needs fixing. '}
-            Your file is read in this browser tab and never uploaded anywhere.
+            {source?.url ? 'The sheet is read straight from its link each time you open RetailAI; nothing is uploaded.' : 'Your file is read in this browser tab and never uploaded anywhere.'}
           </p>
         </Headline>
         <div className="row-actions">
@@ -85,6 +85,15 @@ export function Data({ onOpen }: { onOpen: () => void }) {
                   </>
                 )}
               </p>
+            </>
+          ) : source?.url ? (
+            <>
+              <p className="flow-note">
+                <span className="kind kind-live">Live link</span> {`Read at ${new Date(source.readAt ?? Date.now()).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}, and again on every visit.`}
+              </p>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => loadUrl(source.url!)}>
+                Read the sheet again
+              </button>
             </>
           ) : (
             <p className="flow-note">Read in this browser tab only. Nothing is uploaded.</p>

@@ -99,7 +99,7 @@ export function Forecast() {
           {result.ok ? (
             <>
               <p className="hl-line">
-                Next {H} weeks: about <Fig value={total} format={(v) => money(v, currency)} />.
+                Over the next {H} weeks: about <Fig value={total} format={(v) => money(v, currency)} />.
               </p>
               {lastYear !== null && (
                 <p className="hl-line hl-sub">

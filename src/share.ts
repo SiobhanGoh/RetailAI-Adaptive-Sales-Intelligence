@@ -9,11 +9,14 @@ export interface ViewState {
   to?: number
   dims?: Record<string, string[]>
   compare?: string
+  /** A live sheet's address, read again by whoever opens the link. */
+  src?: string
 }
 
 export function encodeView(v: ViewState): string {
   const q = new URLSearchParams()
-  if (v.sample) q.set('store', v.sample)
+  if (v.src) q.set('src', v.src)
+  else if (v.sample) q.set('store', v.sample)
   if (v.module && v.module !== 'overview') q.set('screen', v.module)
   if (v.from !== undefined && v.to !== undefined && Number.isFinite(v.from) && Number.isFinite(v.to)) q.set('days', `${v.from}..${v.to}`)
   const dims = Object.entries(v.dims ?? {}).filter(([, vals]) => vals && vals.length)
@@ -69,6 +72,8 @@ export function decodeView(hash: string): ViewState | null {
     }
     if (Object.keys(dims).length) v.dims = dims
   }
+  const src = q.get('src')
+  if (src && /^https?:\/\//.test(src)) v.src = src
   const vs = q.get('vs')
   if (vs) v.compare = vs
   return Object.keys(v).length ? v : null

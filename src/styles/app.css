@@ -6324,3 +6324,69 @@ h1.logo {
   outline: 2px solid var(--amber);
   outline-offset: 3px;
 }
+.btn-lang {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.kind-live {
+  background: color-mix(in srgb, #4f8a74 20%, transparent);
+  color: #2f6b55;
+}
+:root[data-theme='dark'] .kind-live {
+  color: #8fc0a9;
+}
+.samples-own {
+  display: grid;
+  gap: 18px;
+}
+.samples-own > .btn {
+  justify-self: start;
+}
+.live-form {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--chassis-ink) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chassis-ink) 10%, transparent);
+}
+.live-form label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.live-row {
+  display: flex;
+  gap: 8px;
+}
+.live-row .field {
+  flex: 1;
+  min-width: 0;
+}
+.live-form .fine {
+  margin: 0;
+}
+.live-problem {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #c4462b 12%, transparent);
+  color: #8f2e18;
+  font-size: 13px;
+  line-height: 1.4;
+}
+:root[data-theme='dark'] .live-problem {
+  color: #ffb4a3;
+}
+:root:not([data-theme='dark']) .kind-real {
+  color: #1f5a37;
+}
+:root:not([data-theme='dark']) .kind-synthetic {
+  color: #8a4210;
+}
+:root:not([data-theme='dark']) .kind-live {
+  color: #1f5a44;
+}
