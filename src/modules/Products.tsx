@@ -80,7 +80,7 @@ export function Products() {
           {info ? (
             <>
               <p className="hl-line">
-                <b className="fig fig-name">{shorten(info.name, 40)}</b> sold <Fig value={info.net} format={(v) => money(v, currency)} /> in {plural(info.orders, 'order')}.
+                <b className="fig fig-name">{shorten(info.name, 64)}</b> sold <Fig value={info.net} format={(v) => money(v, currency)} /> in {plural(info.orders, 'order')}.
               </p>
               <p className="hl-line hl-sub">
                 {together[0] ? `People who bought it also picked up ${together[0].name}.` : `No other order contains it yet, so the lists lean on its ${info.subcategory ? 'sub-category' : 'description'}.`}

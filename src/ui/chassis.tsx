@@ -172,7 +172,14 @@ export function Utilities({ onUpload }: { onUpload: () => void }) {
         title={theme === 'light' ? 'Dark mode' : 'Light mode'}
       >
         <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
-          {theme === 'light' ? <path d="M13.5 3.5a7 7 0 1 0 3 9.6A6 6 0 0 1 13.5 3.5Z" fill="currentColor" /> : <circle cx="10" cy="10" r="4.5" fill="currentColor" />}
+          {theme === 'light' ? (
+            <path d="M13.5 3.5a7 7 0 1 0 3 9.6A6 6 0 0 1 13.5 3.5Z" fill="currentColor" />
+          ) : (
+            <g stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <circle cx="10" cy="10" r="3.6" fill="currentColor" stroke="none" />
+              <path d="M10 2.2v2M10 15.8v2M2.2 10h2M15.8 10h2M4.5 4.5l1.4 1.4M14.1 14.1l1.4 1.4M15.5 4.5l-1.4 1.4M5.9 14.1l-1.4 1.4" />
+            </g>
+          )}
         </svg>
       </button>
     </div>

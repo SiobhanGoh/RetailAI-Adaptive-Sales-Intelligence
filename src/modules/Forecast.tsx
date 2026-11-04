@@ -97,10 +97,13 @@ export function Forecast() {
               <p className="hl-line">
                 Next {H} weeks: about <Fig value={total} format={(v) => money(v, currency)} />.
               </p>
+              {lastYear !== null && (
+                <p className="hl-line hl-sub">
+                  <Pill value={(total - base) / Math.max(1, base)} label="the same weeks last year" />
+                </p>
+              )}
               <p className="hl-line hl-sub">
-                {lastYear !== null ? <Pill value={(total - base) / Math.max(1, base)} label="the same weeks last year" /> : null}
-                {' '}
-                <Term tip="8 in 10 past weeks landed inside this range when the same method was replayed on your data. A wider range means less certainty.">Likely range</Term> {money(result.forecast.reduce((a, p) => a + p.lo, 0), currency)} to {money(result.forecast.reduce((a, p) => a + p.hi, 0), currency)}. {chosenScore ? forecastTrust(chosenScore.wape) : ''}
+                <Term tip="8 in 10 past weeks landed inside this range when the same method was replayed on your data. A wider range means less certainty.">Likely range {money(result.forecast.reduce((a, p) => a + p.lo, 0), currency)} to {money(result.forecast.reduce((a, p) => a + p.hi, 0), currency)}</Term> {chosenScore ? forecastTrust(chosenScore.wape) : ''}
               </p>
             </>
           ) : (

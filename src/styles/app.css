@@ -5014,13 +5014,27 @@ button.who-row.on::after {
 }
 
 /* dock titles peek out on the first visit */
-.dock-btn.peek {
-  gap: 10px;
-  padding-right: 18px;
+.dock-btn {
+  position: relative;
 }
-.dock-btn.peek .dock-label {
-  max-width: 320px;
-  opacity: 1;
+.dock-btn.peek::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  border: 2.5px solid var(--amber-hot);
+  pointer-events: none;
+  animation: dockpulse 1.4s ease-out 2;
+}
+@keyframes dockpulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
 }
 
 @media (max-width: 600px) {
@@ -5560,4 +5574,52 @@ button.who-row.on::after {
 }
 .seg-strip .seg.on .seg-count {
   color: var(--amber);
+}
+
+/* ================================================================ lead-review polish */
+
+/* clipped content fades out at the fold, so the cut reads as intentional */
+.screen-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 72px;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--alu-lo) 92%);
+  border-radius: 0 0 16px 16px;
+}
+.more-below {
+  z-index: 6;
+}
+
+/* the dock steps back while scrolling */
+.dock.dock-dim .dock-btn {
+  opacity: 0.3;
+}
+.dock-btn {
+  transition: opacity 0.25s var(--ease-out), gap 0.35s var(--ease-out), padding 0.35s var(--ease-out), transform 0.2s var(--ease-out), background-color 0.2s, color 0.2s;
+}
+
+/* segment names wrap instead of truncating */
+.seg-strip .seg-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: 13px;
+  line-height: 1.15;
+}
+.seg-strip .seg {
+  align-items: start;
+}
+.seg-strip .seg-count {
+  align-self: center;
+}
+
+/* the download-all button's glyph sits on the text line */
+.seg-detail .btn svg,
+.cust-pane .btn svg {
+  vertical-align: -2px;
+  margin-right: 6px;
 }

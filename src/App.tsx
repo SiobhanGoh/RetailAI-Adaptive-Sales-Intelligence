@@ -54,6 +54,25 @@ function Screen({ onOpen }: { onOpen: () => void }) {
     screen.current?.scrollTo({ top: 0 })
     if (window.scrollY > 0 && window.matchMedia('(max-width: 900px)').matches) window.scrollTo({ top: 0 })
   }, [module, report])
+  // While you scroll, the floating dock steps back so it never hides what you are reading.
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>
+    const dim = () => {
+      const d = document.getElementById('dock')
+      d?.classList.add('dock-dim')
+      clearTimeout(t)
+      t = setTimeout(() => d?.classList.remove('dock-dim'), 420)
+    }
+    const el = screen.current
+    el?.addEventListener('scroll', dim, { passive: true })
+    addEventListener('scroll', dim, { passive: true })
+    return () => {
+      el?.removeEventListener('scroll', dim)
+      removeEventListener('scroll', dim)
+      clearTimeout(t)
+    }
+  }, [])
+
   // A small 'More below' cue while part of the screen is out of sight.
   useEffect(() => {
     const el = screen.current
@@ -114,6 +133,7 @@ function Screen({ onOpen }: { onOpen: () => void }) {
         {body}
       </div>
       {wash > 0 && !reducedMotion() && <div key={wash} className="wash" aria-hidden />}
+      {more && !report && <div className="screen-fade" aria-hidden />}
       {more && (
         <button type="button" className="more-below" onClick={() => screen.current?.scrollBy({ top: screen.current.clientHeight * 0.75, behavior: reducedMotion() ? 'auto' : 'smooth' })}>
           More below

@@ -164,6 +164,12 @@ export function Customers() {
                 ))}
               </div>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => downloadCsv(`customers-${picked.id}`, picked.members.map((c) => ({ customer_id: c.id, name: c.name ?? '', orders: c.orders, net_sales: c.net.toFixed(2), first_order: new Date(c.firstDay * 86_400_000).toISOString().slice(0, 10), last_order: new Date(c.lastDay * 86_400_000).toISOString().slice(0, 10), recency_score: c.r, frequency_score: c.f, monetary_score: c.m })))}>
+                <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden>
+                  <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 3v9m-3.5-3.5L10 12l3.5-3.5" />
+                    <path d="M4 13.5V16h12v-2.5" />
+                  </g>
+                </svg>
                 Download all {count(picked.members.length)} {picked.label.toLowerCase()}
               </button>
             </>
