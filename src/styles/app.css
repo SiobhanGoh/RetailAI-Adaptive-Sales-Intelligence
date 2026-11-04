@@ -9,7 +9,7 @@
   --alu: #dcd7ce;
   --alu-lo: #c6c0b5;
   --chassis-ink: #2b2520;
-  --chassis-dim: #7a6f63;
+  --chassis-dim: #5f554a;
   --brush: none; /* the striped metal texture was too busy; surfaces are now plain */
   --chassis: linear-gradient(180deg, var(--alu-hi), var(--alu) 45%, var(--alu-lo));
   --raised: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 -2px 0 rgba(60, 45, 30, 0.12) inset, 0 8px 18px rgba(60, 45, 30, 0.16);
@@ -28,7 +28,7 @@
   --card-hi: #fffdf8;
   --card-lo: #f6f1e7;
   --ink: #2b2520;
-  --ink-dim: #7e7163;
+  --ink-dim: #6f6355;
   --track: rgba(60, 45, 30, 0.08);
   --metal-hi: #fbfaf7;
   --metal-lo: #ddd8cf;
@@ -38,7 +38,7 @@
   --receipt: #fffdf7;
   --tag: #fbf4e4;
   --receipt-ink: #2b2520;
-  --receipt-dim: #7e7163;
+  --receipt-dim: #6f6355;
 
   /* light and ink */
   --amber: #ffad5c;
@@ -6309,4 +6309,18 @@ button.who-row.on::after {
 }
 .cust-hero-map {
   align-content: start;
+}
+h1.logo {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+.links .link-row:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.printer-feed:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
 }

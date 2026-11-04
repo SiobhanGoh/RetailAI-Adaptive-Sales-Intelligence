@@ -15,7 +15,7 @@ import { Report } from './modules/Report'
 
 function Logo() {
   return (
-    <div className="logo">
+    <h1 className="logo" aria-label="RetailAI sales console">
       <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden>
         <g transform="rotate(-12 20 20)">
           <path d="M14 6h12l6 7v21H8V13z" className="logo-plate" />
@@ -26,7 +26,7 @@ function Logo() {
       <span className="logo-word">
         RETAIL<b>AI</b>
       </span>
-    </div>
+    </h1>
   )
 }
 
@@ -118,6 +118,7 @@ function Screen({ onOpen }: { onOpen: () => void }) {
   return (
     <main className={`screen ${report ? 'screen-report' : ''}`} id="screen" aria-label={report ? 'Printable report' : MODULES.find((m) => m.id === module)?.label}>
       <div className="screen-glass" ref={screen}>
+        {!report && <h2 className="sr-only">{MODULES.find((m) => m.id === module)?.label}</h2>}
         {error && (
           <div className="alert" role="alert">
             <p>{error}</p>

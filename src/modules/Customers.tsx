@@ -196,7 +196,7 @@ export function Customers() {
           </div>
           {picked.members.length ? (
             <>
-              <div className="who-list" role="list">
+              <div className="who-list" role="group" aria-label={`${picked.label} customers`}>
                 <div className="who-row who-head" aria-hidden>
                   <span className="who-name">Customer</span>
                   <span>Orders</span>
@@ -204,7 +204,7 @@ export function Customers() {
                   <span>Last order</span>
                 </div>
                 {picked.members.slice(0, 8).map((c) => (
-                  <button key={c.id} type="button" role="listitem" className={`who-row ${person?.id === c.id ? 'on' : ''}`} aria-current={person?.id === c.id} onClick={() => setWho(c.id)}>
+                  <button key={c.id} type="button" className={`who-row ${person?.id === c.id ? 'on' : ''}`} aria-pressed={person?.id === c.id} onClick={() => setWho(c.id)}>
                     <span className="who-name">{c.name ?? c.id}</span>
                     <span>{c.orders}</span>
                     <span>{money(c.net, currency)}</span>

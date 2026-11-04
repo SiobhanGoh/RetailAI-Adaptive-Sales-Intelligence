@@ -70,7 +70,7 @@ export function ShareStack({ items, label }: { items: { key: string; share: numb
 }
 
 /** Generic heat grid. `cells[row][col]` with null for "not observable yet". */
-export function Heat({ cells, rows, cols, format, label, max, tip }: { cells: (number | null)[][]; rows: string[]; cols: string[]; format: (v: number) => string; label: string; max?: number; tip?: (row: number, col: number, v: number | null) => { title: string; value: string } }) {
+export function Heat({ cells, rows, cols, format, label, max, tip, corner = 'Row' }: { cells: (number | null)[][]; rows: string[]; cols: string[]; format: (v: number) => string; label: string; max?: number; tip?: (row: number, col: number, v: number | null) => { title: string; value: string }; corner?: string }) {
   const top = max ?? Math.max(1e-9, ...cells.flat().filter((v): v is number => v !== null))
   type Spot = { i: number; j: number; x: number; y: number; h: number }
   const [hover, setHover] = useState<Spot | null>(null)
@@ -98,7 +98,7 @@ export function Heat({ cells, rows, cols, format, label, max, tip }: { cells: (n
     >
       <div className="heat" role="table" aria-label={label} style={{ gridTemplateColumns: `minmax(64px,auto) repeat(${cols.length}, minmax(28px,1fr))` }}>
         <div role="row" className="heat-row heat-head">
-          <span role="columnheader" />
+          <span role="columnheader"><span className="sr-only">{corner}</span></span>
           {cols.map((c, j) => (
             <span role="columnheader" key={c + j} className={shown?.j === j ? 'lit' : ''}>{c}</span>
           ))}

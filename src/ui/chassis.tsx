@@ -287,7 +287,7 @@ export function ReceiptPrinter() {
       <div className="printer-slot" aria-hidden>
         <span className="printer-light" />
       </div>
-      <div className="printer-feed">
+      <div className="printer-feed" tabIndex={0} aria-label="Notes on this screen">
         <div className="paper" ref={paper}>
           {content ? (
             <>
@@ -733,7 +733,7 @@ export function FilterDrop({ onClose }: { onClose: () => void }) {
             )
           })}
         </div>
-        <footer className="fd-foot">
+        <div className="fd-foot">
           <p>
             {plural(rowsAllDates.length, 'row')} match{rowsAllDates.length === 1 ? 'es' : ''}, before the date range is applied.
           </p>
@@ -741,7 +741,7 @@ export function FilterDrop({ onClose }: { onClose: () => void }) {
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => pickDims({})} disabled={!picked}>Clear all</button>
             <button type="button" className="btn btn-sticker btn-sm" onClick={onClose}>Done</button>
           </div>
-        </footer>
+        </div>
       </div>
     </>,
     document.body,

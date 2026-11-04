@@ -393,7 +393,7 @@ function DockSheet({ title, icon, children, actions, openKey }: { title: string;
           <>
             <div className="gsheet-backdrop" ref={backdrop} onClick={close} aria-hidden />
             <div className="gsheet" id={id} ref={sheet} role="dialog" aria-modal="true" aria-label={title}>
-              <header className="gsheet-head">
+              <div className="gsheet-head">
                 <span className="gsheet-icon" aria-hidden>
                   <svg viewBox="0 0 20 20" width="18" height="18">
                     <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{ICONS[icon]}</g>
@@ -406,7 +406,7 @@ function DockSheet({ title, icon, children, actions, openKey }: { title: string;
                     <path d="M3 3l10 10M13 3 3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                   </svg>
                 </button>
-              </header>
+              </div>
               <div className="gsheet-body details-body" onPointerMove={glint}>
                 {children}
               </div>

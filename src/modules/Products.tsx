@@ -205,6 +205,16 @@ export function Products() {
                       onPointerEnter={() => setHoverPair(i)}
                       onPointerLeave={() => setHoverPair(null)}
                       onClick={() => setPinPair(pinPair === i ? null : i)}
+                      tabIndex={0}
+                      aria-current={pinPair === i ? 'true' : undefined}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setPinPair(pinPair === i ? null : i)
+                        }
+                      }}
+                      onFocus={() => setHoverPair(i)}
+                      onBlur={() => setHoverPair(null)}
                     >
                       <span className="link-pair">
                         <span className="link-pill">{p.a}</span>
