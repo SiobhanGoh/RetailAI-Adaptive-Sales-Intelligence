@@ -2,7 +2,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { scaleLinear } from 'd3-scale'
 import { area, line, curveMonotoneX } from 'd3-shape'
-import { reducedMotion, useSize } from '../ui/primitives'
+import { PinNote, reducedMotion, usePin, useSize } from '../ui/primitives'
 import { fmtDay, fmtMonth, money, type Currency } from '../format'
 
 export interface ScopePoint {
@@ -41,8 +41,9 @@ export function Scope({
   label: string
   compare?: ScopePoint[]
 }) {
-  const [ref, { w }] = useSize<HTMLDivElement>()
+  const [ref, { w }, root] = useSize<HTMLDivElement>()
   const [hover, setHover] = useState<number | null>(null)
+  const [pin, setPin] = usePin<number>(root)
   const id = useId().replace(/:/g, '')
   const pad = { l: 52, r: 14, t: 14, b: 26 }
   const width = Math.max(w, 280)
@@ -116,22 +117,55 @@ export function Scope({
   const yTicks = y.ticks(4)
 
   const series = [...points.map((p) => ({ ...p, f: false as const })), ...(forecast ?? []).map((p) => ({ ...p, f: true as const }))]
-  const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
+  const nearest = (e: React.PointerEvent<SVGSVGElement> | React.MouseEvent<SVGSVGElement>) => {
     const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect()
     const px = ((e.clientX - r.left) / r.width) * width
+    const py = ((e.clientY - r.top) / r.height) * height
     let best = 0
     let bd = Infinity
     series.forEach((p, i) => {
       const d = Math.abs(x(p.end) - px)
       if (d < bd) [bd, best] = [d, i]
     })
-    setHover(best)
+    // A click counts as "on a value" when it lands close to the line, not anywhere in the column.
+    const near = Math.abs(y(series[best].y) - py) < 40 && bd < Math.max(16, (width - pad.l - pad.r) / Math.max(1, series.length))
+    return { best, near }
   }
-  const hp = hover !== null ? series[hover] : null
+  const onMove = (e: React.PointerEvent<SVGSVGElement>) => setHover(nearest(e).best)
+  const onClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    const { best, near } = nearest(e)
+    setPin(near && pin !== best ? best : null)
+  }
+  const onKey = (e: React.KeyboardEvent<SVGSVGElement>) => {
+    const from = pin ?? hover ?? points.length - 1
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault()
+      setPin(Math.min(series.length - 1, Math.max(0, from + (e.key === 'ArrowLeft' ? -1 : 1))))
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      setPin(pin === null ? from : null)
+    }
+  }
+  const shownAt = pin ?? hover
+  const hp = shownAt !== null ? series[shownAt] : null
+  const hpMark = hp && !hp.f ? markers.find((m) => m.end === hp.end) : undefined
 
   return (
     <div ref={ref} className="scope" style={{ height }}>
-      <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={label} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width={width}
+        height={height}
+        role="img"
+        aria-label={`${label}. Use the left and right arrow keys to read each week.`}
+        tabIndex={0}
+        className={pin !== null ? 'is-pinned' : ''}
+        onPointerMove={onMove}
+        onPointerLeave={() => setHover(null)}
+        onClick={onClick}
+        onKeyDown={onKey}
+        onBlur={() => setHover(null)}
+      >
         <defs>
           <filter id={`glow-${id}`} x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="3.2" result="b" />
@@ -186,21 +220,25 @@ export function Scope({
           if (!p) return null
           return (
             <g key={`m${m.end}`} className={`scope-marker scope-marker-${m.kind}`} transform={`translate(${x(p.end)},${y(p.y)})`}>
+              <circle r={7} className="halo" aria-hidden />
               <circle r={7} />
               <circle r={2.5} className="dot" />
               <title>{m.label}</title>
             </g>
           )
         })}
+        {hover !== null && pin !== null && hover !== pin && (
+          <line x1={x(series[hover].end)} x2={x(series[hover].end)} y1={pad.t} y2={height - pad.b} className="crosshair crosshair-ghost" />
+        )}
         {hp && (
-          <g>
+          <g className={pin !== null ? 'crosshair-pinned' : ''}>
             <line x1={x(hp.end)} x2={x(hp.end)} y1={pad.t} y2={height - pad.b} className="crosshair" />
-            <circle cx={x(hp.end)} cy={y(hp.y)} r={4} className="crosshair-dot" />
+            <circle cx={x(hp.end)} cy={y(hp.y)} r={pin !== null ? 5 : 4} className="crosshair-dot" />
           </g>
         )}
       </svg>
       {hp && (
-        <div className="scope-tip" style={{ left: Math.min(Math.max(x(hp.end), 90), width - 90) }}>
+        <div className={`scope-tip glass-tip ${pin !== null ? 'pinned' : ''}`} style={{ left: Math.min(Math.max(x(hp.end), 110), width - 110) }} aria-live="polite">
           <strong>{money(hp.y, currency, 'whole')}</strong>
           <span>
             {hp.f ? 'Forecast, ' : ''}week ending {fmtDay(hp.end)}
@@ -211,6 +249,8 @@ export function Scope({
               80% band {money(hp.lo, currency)} – {money(hp.hi, currency)}
             </span>
           )}
+          {hpMark && <span className={`tip-flag tip-flag-${hpMark.kind}`}>{hpMark.label}</span>}
+          {pin !== null && <PinNote onClose={() => setPin(null)} />}
         </div>
       )}
     </div>

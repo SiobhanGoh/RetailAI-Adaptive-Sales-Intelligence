@@ -3,6 +3,7 @@ import { jumpBox, useApp } from '../state'
 import { usePrint } from '../receipt'
 import { Details, Empty, Fig, Headline, Hint, Panel, Term } from '../ui/primitives'
 import { Heat } from '../charts/misc'
+import { CustomerMap, OrderRhythm, SEGMENT_COLOR } from '../charts/CustomerMap'
 import { SearchBox } from '../ui/SearchBox'
 import { SEGMENTS, cohorts, customerStats, quarterLabel, repeatStats, rfGrid, segmentSummary, type SegmentId } from '../engine/customers'
 import { buildIndex, suggestForCustomer, REASON_LABEL } from '../engine/recommend'
@@ -16,6 +17,7 @@ export function Customers() {
   const { ds, rows, rowsAllDates, filters, currency, sampleId } = useApp()
   const [seg, setSeg] = useState<SegmentId>('at-risk')
   const [who, setWho] = useState('')
+  const [litSeg, setLitSeg] = useState<SegmentId | null>(null)
   const asOf = (ds?.capabilities.dates ? filters.to : 0) + 1
   const stats = useMemo(() => (ds?.capabilities.customers && ds.capabilities.dates ? customerStats(rows, asOf) : []), [rows, ds, asOf])
   const segments = useMemo(() => segmentSummary(stats), [stats])
@@ -31,6 +33,12 @@ export function Customers() {
     return [...stats].sort((a, b) => b.net - a.net).map((c) => ({ id: c.id, label: c.name ?? c.id, sub: `${label.get(c.segment) ?? ''}${c.name && c.name !== c.id ? `, ${c.id}` : ''}`, meta: money(c.net, currency) }))
   }, [stats, currency])
   const ideas = useMemo(() => (idx && person ? suggestForCustomer(idx, person.id, 5) : []), [idx, person])
+  const orderDays = useMemo(() => {
+    if (!person) return []
+    const days = new Set<number>()
+    for (const r of rows) if (r.customer === person.id && r.revenue > 0) days.add(r.day)
+    return [...days].sort((a, b) => a - b)
+  }, [rows, person])
 
   useEffect(() => {
     const id = jumpBox.customer
@@ -115,34 +123,63 @@ export function Customers() {
 
       <Hint id="customers-flow">Tip: pick a group of customers, then a person in it, to see what to offer them next.</Hint>
 
-      {/* One flow, left to right: pick a segment, then a customer in it, then see what to offer them. */}
-      <div className="seg-strip" role="tablist" aria-label="Customer segments">
-        {segments.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            role="tab"
-            aria-selected={s.id === seg}
-            className={`seg seg-${s.id} ${s.id === seg ? 'on' : ''}`}
-            onClick={() => {
-              setSeg(s.id)
-              setWho('')
+      {/* The map and the segment list are one picture: a segment lights its dots, a dot picks a
+          customer for the panes below. */}
+      <section className="cust-hero" aria-label="Customers by recency and frequency">
+        <div className="cust-hero-map">
+          <header className="anchor-chart-head">
+            <h3>Every customer, by how recently and how often they buy</h3>
+            <span className="cust-hero-key">Bigger dot, bigger spender. Click a dot to pick that customer.</span>
+          </header>
+          <CustomerMap
+            stats={stats}
+            segLabel={(s) => SEGMENTS.find((x) => x.id === s)!.label}
+            seg={seg}
+            lit={litSeg}
+            person={person?.id}
+            currency={currency}
+            onPerson={(c) => {
+              setSeg(c.segment)
+              setWho(c.id)
             }}
-          >
-            <span className="seg-name">{s.label}</span>
-            <span className="seg-count">{count(s.customers)}</span>
-            <span className="seg-share">{pct(s.share, 0)} of sales</span>
-            <span className="seg-bar" aria-hidden>
-              <i style={{ width: `${Math.min(100, s.share * 100)}%` }} />
-            </span>
-          </button>
-        ))}
-      </div>
+          />
+        </div>
+        <div className="seg-legend" role="tablist" aria-label="Customer segments" aria-orientation="vertical" onPointerLeave={() => setLitSeg(null)}>
+          {segments.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              role="tab"
+              aria-selected={s.id === seg}
+              className={`segl segl-${s.id} ${s.id === seg ? 'on' : ''}`}
+              style={{ ['--c' as string]: SEGMENT_COLOR[s.id] }}
+              onPointerEnter={() => setLitSeg(s.id)}
+              onFocus={() => setLitSeg(s.id)}
+              onBlur={() => setLitSeg(null)}
+              onClick={() => {
+                setSeg(s.id)
+                setWho('')
+              }}
+            >
+              <i className="segl-dot" aria-hidden />
+              <span className="segl-name">{s.label}</span>
+              <span className="segl-count">{count(s.customers)}</span>
+              <span className="segl-bar" aria-hidden>
+                <b style={{ width: `${Math.min(100, s.share * 100)}%` }} />
+              </span>
+              <span className="segl-share">{pct(s.share, 0)} of sales</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="cust-flow" role="tabpanel" aria-label={`${picked.label} customers and what to offer them`}>
         <div className="cust-pane">
           <header className="cust-pane-head">
-            <h3>{picked.label}</h3>
+            <h3>
+              <i className="segl-dot" style={{ ['--c' as string]: SEGMENT_COLOR[picked.id] }} aria-hidden />
+              {picked.label}
+            </h3>
             <p className="quiet">
               {picked.rule}. {picked.action}
             </p>
@@ -200,6 +237,9 @@ export function Customers() {
                   {person.segment !== seg ? ` In ${segments.find((s) => s.id === person.segment)!.label}.` : ''}
                 </p>
               </header>
+              {orderDays.length > 0 && (
+                <OrderRhythm days={orderDays} asOf={asOf} usualGap={person.orders > 1 ? (person.lastDay - person.firstDay) / (person.orders - 1) : rep.medianGapDays} />
+              )}
               <ol className="tags tags-swing" key={person.id}>
                 {ideas.map((s, i) => (
                   <li key={s.product} className="tag" style={{ ['--n' as string]: String(i) }}>

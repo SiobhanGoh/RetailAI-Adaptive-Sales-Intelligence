@@ -621,6 +621,14 @@ export function FilterDrop({ onClose }: { onClose: () => void }) {
     else delete all[d]
     pickDims(all)
   }
+  // "All" is on while nothing in the group is picked; choosing it clears the group, and picking
+  // any value turns it off again.
+  const clearDim = (d: Dimension) => {
+    if (!(filters.dims[d] ?? []).length) return
+    const all = { ...filters.dims }
+    delete all[d]
+    pickDims(all)
+  }
 
   useLayoutEffect(() => {
     const el = box.current
@@ -693,6 +701,7 @@ export function FilterDrop({ onClose }: { onClose: () => void }) {
                   <span className="fd-name">{DIMENSION_LABEL[d]}</span>
                   <span className="fd-count">{all.length}</span>
                   <span className="fd-picks">
+                    {!sel.length && <i className="all">All</i>}
                     {sel.slice(0, 2).map((s) => (
                       <i key={s}>{s}</i>
                     ))}
@@ -704,6 +713,9 @@ export function FilterDrop({ onClose }: { onClose: () => void }) {
                   <div className="fd-panel">
                     {all.length > 12 && <input className="field" type="search" placeholder={`Find a ${DIMENSION_LABEL[d].toLowerCase()} among ${all.length}`} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={`Search ${DIMENSION_LABEL[d]}`} />}
                     <div className="chips">
+                      <button type="button" className={`chip chip-all ${sel.length ? '' : 'on'}`} aria-pressed={!sel.length} onClick={() => clearDim(d)}>
+                        All
+                      </button>
                       {sel.filter((s) => !list.some((o) => o.key === s)).map((s) => (
                         <button key={s} type="button" className="chip on" aria-pressed onClick={() => toggle(d, s)}>{s}</button>
                       ))}

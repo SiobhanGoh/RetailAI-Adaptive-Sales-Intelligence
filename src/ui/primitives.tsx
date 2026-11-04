@@ -22,6 +22,42 @@ export function useSize<T extends HTMLElement>(): [(el: T | null) => void, { w: 
   return [callback, size, ref]
 }
 
+/** Clicking a value in a chart pins its card in place. A click on empty chart space, anywhere
+ *  outside the chart, or Esc lets it go. Returns the pinned value and a setter. */
+export function usePin<T>(root: React.RefObject<HTMLElement | null>): [T | null, (v: T | null) => void] {
+  const [pin, setPin] = useState<T | null>(null)
+  useEffect(() => {
+    if (pin === null) return
+    const away = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setPin(null)
+    }
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPin(null)
+    }
+    addEventListener('pointerdown', away, true)
+    addEventListener('keydown', key)
+    return () => {
+      removeEventListener('pointerdown', away, true)
+      removeEventListener('keydown', key)
+    }
+  }, [pin, root])
+  return [pin, setPin]
+}
+
+/** The close mark and hint inside a pinned chart card. */
+export function PinNote({ onClose }: { onClose: () => void }) {
+  return (
+    <>
+      <span className="tip-pin-note">Pinned. Click empty space to let go.</span>
+      <button type="button" className="tip-close" aria-label="Let go of this card" onClick={onClose} onPointerDown={(e) => e.stopPropagation()}>
+        <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden>
+          <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      </button>
+    </>
+  )
+}
+
 /** A large figure that counts smoothly to its new value. */
 export function Readout({ value, currency, kind = 'money', size = 'md', label, flip = false }: { value: number; currency?: Currency; kind?: 'money' | 'count' | 'pct'; size?: 'sm' | 'md' | 'lg' | 'xl'; label: string; flip?: boolean }) {
   const [shown, setShown] = useState(value)

@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { PairWeb } from '../charts/misc'
 import { SearchBox } from '../ui/SearchBox'
 import { jumpBox, useApp } from '../state'
 import { usePrint } from '../receipt'
-import { Details, Empty, Fig, Headline, Hint, Panel, SaveCsv } from '../ui/primitives'
+import { Details, Empty, Fig, Headline, Hint, Panel, SaveCsv, usePin } from '../ui/primitives'
 import { buildIndex, similarProducts, subcategoryAffinity, suggestFor, togetherWith, topPairs, type Suggestion } from '../engine/recommend'
 import { downloadCsv, money, plural, shorten } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
@@ -50,6 +50,9 @@ export function Products() {
   const seed = idx ? (picked && idx.products.has(picked) ? picked : (cat || sub) && pool[0] ? pool[0].id : idx.popular[0]) : undefined
   const searchItems = useMemo(() => pool.map((p) => ({ id: p.id, label: p.name, sub: p.subcategory, meta: money(p.net, currency) })), [pool, currency])
   const [hoverPair, setHoverPair] = useState<number | null>(null)
+  const togetherBox = useRef<HTMLDivElement>(null)
+  const [pinPair, setPinPair] = usePin<number>(togetherBox)
+  const litPair = pinPair ?? hoverPair
   const info = seed && idx ? idx.products.get(seed) : undefined
 
   const together = useMemo(() => (idx && seed ? togetherWith(idx, [seed], new Set([seed])).slice(0, 5) : []), [idx, seed])
@@ -187,8 +190,8 @@ export function Products() {
       >
         <Panel className="panel-together">
           {affinity.length > 0 ? (
-            <div className="together">
-              <PairWeb pairs={affinity} active={hoverPair} onHover={setHoverPair} label="Sub-categories joined by how often they share an order" />
+            <div className={`together ${pinPair !== null ? 'is-pinned' : ''}`} ref={togetherBox} onClick={(e) => !(e.target as Element).closest('.pairweb, .link-row') && setPinPair(null)}>
+              <PairWeb pairs={affinity} active={litPair} onHover={setHoverPair} onPick={(i) => setPinPair(i !== null && i !== pinPair ? i : null)} label="Sub-categories joined by how often they share an order" />
               <div className="together-list">
                 <div className="link-row link-head" aria-hidden>
                   <span>Sub-categories bought in the same order</span>
@@ -196,7 +199,13 @@ export function Products() {
                 </div>
                 <ol className="links">
                   {affinity.map((p, i) => (
-                    <li key={`${p.a}${p.b}`} className={`link-row ${hoverPair === i ? 'on' : ''}`} onPointerEnter={() => setHoverPair(i)} onPointerLeave={() => setHoverPair(null)}>
+                    <li
+                      key={`${p.a}${p.b}`}
+                      className={`link-row ${litPair === i ? 'on' : ''} ${pinPair === i ? 'pinned' : ''}`}
+                      onPointerEnter={() => setHoverPair(i)}
+                      onPointerLeave={() => setHoverPair(null)}
+                      onClick={() => setPinPair(pinPair === i ? null : i)}
+                    >
                       <span className="link-pair">
                         <span className="link-pill">{p.a}</span>
                         <span className="link-wire" aria-hidden>

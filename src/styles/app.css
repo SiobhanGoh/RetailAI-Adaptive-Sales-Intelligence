@@ -5804,3 +5804,509 @@ button.who-row.on::after {
 .paper-foot {
   margin-top: 10px !important;
 }
+
+/* ================================================================ chart cards: liquid glass, pinnable
+   Every chart card is a pane of smoked glass with a bright rim. Clicking a value pins it: the
+   card gains an amber rim, a close mark and stays put until a click lands on empty space. */
+.glass-tip {
+  --tip-fill: rgba(30, 24, 18, 0.58);
+  --tip-ink: #fff6ea;
+  --tip-dim: rgba(255, 238, 218, 0.74);
+  background: linear-gradient(150deg, rgba(255, 245, 230, 0.2), transparent 38%, transparent 72%, rgba(255, 245, 230, 0.08)), linear-gradient(var(--tip-fill), var(--tip-fill));
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  backdrop-filter: blur(16px) saturate(170%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 14px 32px rgba(20, 14, 8, 0.32);
+  color: var(--tip-dim);
+  border-radius: 14px;
+  padding: 9px 14px 10px;
+}
+.panel-glass .glass-tip,
+.screen-glass .glass-tip,
+.scope .glass-tip {
+  --tip-fill: rgba(255, 238, 214, 0.13);
+}
+.glass-tip strong {
+  color: var(--tip-ink);
+}
+.scope-tip.glass-tip {
+  top: -6px;
+}
+.glass-tip.pinned {
+  pointer-events: auto;
+  padding-right: 38px;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 0 0 1.5px color-mix(in srgb, var(--amber) 80%, transparent), 0 0 0 4px color-mix(in srgb, var(--amber) 18%, transparent), 0 16px 36px rgba(20, 14, 8, 0.36);
+  animation: pinin 0.32s var(--ease-out) both;
+}
+.chart-tip.glass-tip.pinned {
+  animation: pinin-up 0.32s var(--ease-out) both;
+}
+@keyframes pinin {
+  from {
+    transform: translateX(-50%) scale(0.94);
+  }
+}
+@keyframes pinin-up {
+  from {
+    transform: translate(-50%, calc(-100% - 10px)) scale(0.94);
+  }
+}
+.tip-pin-note {
+  margin-top: 4px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--tip-dim) 82%, transparent);
+}
+.tip-close {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 245, 230, 0.16);
+  color: var(--tip-ink);
+  cursor: pointer;
+}
+.tip-close:hover,
+.tip-close:focus-visible {
+  background: var(--amber);
+  color: #2e1800;
+}
+.tip-flag {
+  margin-top: 3px;
+  padding: 2px 8px;
+  justify-self: start;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: rgba(255, 123, 92, 0.22);
+  color: #ffd3c6;
+}
+.tip-flag-dip {
+  background: rgba(143, 192, 169, 0.22);
+  color: #d4f0e2;
+}
+.scope svg,
+.pareto svg {
+  cursor: crosshair;
+}
+.scope svg:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+.crosshair-pinned .crosshair {
+  stroke: var(--amber);
+  stroke-dasharray: none;
+  opacity: 0.75;
+}
+.crosshair-pinned .crosshair-dot {
+  fill: var(--amber);
+}
+.crosshair-ghost {
+  opacity: 0.5;
+}
+.heat-cell {
+  cursor: pointer;
+}
+.heat-cell.pinned {
+  box-shadow: 0 0 0 2px var(--amber), 0 0 14px color-mix(in srgb, var(--amber) 60%, transparent);
+  transform: scale(1.08);
+  z-index: 2;
+}
+.heat-cell:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+}
+.shipbar-col {
+  cursor: pointer;
+}
+.shipbars.is-pinned .shipbar:not(.on) .shipbar-col i {
+  opacity: 0.55;
+}
+.links .link-row {
+  cursor: pointer;
+}
+.links .link-row.pinned {
+  box-shadow: inset 0 0 0 1.5px var(--amber);
+}
+.pw-link {
+  cursor: pointer;
+}
+
+/* Unusual weeks glow: a soft halo breathes behind each marker so they catch the eye. */
+.scope-marker circle:not(.halo):not(.dot) {
+  filter: drop-shadow(0 0 3px var(--s3)) drop-shadow(0 0 8px color-mix(in srgb, var(--s3) 70%, transparent));
+}
+.scope-marker .dot {
+  filter: drop-shadow(0 0 4px var(--s3));
+}
+.scope-marker .halo {
+  fill: color-mix(in srgb, var(--s3) 38%, transparent);
+  stroke: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: halo 2.4s ease-out infinite;
+}
+.scope-marker-dip circle:not(.halo):not(.dot) {
+  filter: drop-shadow(0 0 3px var(--s4)) drop-shadow(0 0 8px color-mix(in srgb, var(--s4) 70%, transparent));
+}
+.scope-marker-dip .dot {
+  fill: var(--s4);
+  filter: drop-shadow(0 0 4px var(--s4));
+}
+.scope-marker-dip .halo {
+  fill: color-mix(in srgb, var(--s4) 38%, transparent);
+}
+@keyframes halo {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.3);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scope-marker .halo {
+    animation: none;
+    transform: scale(1.6);
+    opacity: 0.35;
+  }
+}
+
+/* The "All" chip leads each filter group. */
+.chip-all {
+  font-weight: 650;
+}
+.fd-picks i.all {
+  background: transparent;
+  color: var(--chassis-dim);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chassis-ink) 16%, transparent);
+}
+
+/* Products: the finder sits top right beside the headline, so the content starts higher. */
+.mod-products .mod-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 270px);
+  align-items: start;
+  gap: 32px;
+}
+.mod-products .finder {
+  min-width: 0;
+  gap: 8px;
+  padding-top: 4px;
+}
+.mod-products .finder .select-wrap > span {
+  font-size: 12px;
+}
+.mod-products .finder-filters {
+  gap: 6px;
+}
+.mod-products .finder-cats .chip {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.mod-products .finder-filters .field-sm {
+  width: 100%;
+}
+@media (max-width: 820px) {
+  .mod-products .mod-head {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+}
+.scope svg:focus:not(:focus-visible) { outline: none; }
+
+.chart-tip.chart-tip-below {
+  transform: translate(-50%, 10px);
+}
+.chart-tip.glass-tip.pinned.chart-tip-below {
+  animation: pinin-down 0.32s var(--ease-out) both;
+}
+@keyframes pinin-down {
+  from {
+    transform: translate(-50%, 10px) scale(0.94);
+  }
+}
+.chart-tip.chart-tip-below:not(.pinned) {
+  animation-name: tipin-down;
+}
+@keyframes tipin-down {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+}
+.sw-marker {
+  box-shadow: 0 0 6px var(--s3), 0 0 12px color-mix(in srgb, var(--s3) 60%, transparent), inset 0 0 4px color-mix(in srgb, var(--s3) 60%, transparent);
+}
+
+/* ================================================================ customers: the map
+   One dark glass window, like the Overview anchor: the customer map on the left, the segments as
+   a lit legend on the right. Each segment keeps one colour everywhere on the screen. */
+:root {
+  --seg-champions: #ffad5c;
+  --seg-loyal: #f2c14e;
+  --seg-new: #b9a6e3;
+  --seg-promising: #8fc0a9;
+  --seg-at-risk: #ff7b5c;
+  --seg-hibernating: #a3927f;
+}
+.cust-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 2.3fr) minmax(220px, 0.9fr);
+  gap: 28px;
+  padding: 24px 26px 18px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, var(--glass-2), var(--glass));
+  color: var(--glass-ink);
+  --text: var(--glass-ink);
+  --text-dim: var(--glass-dim);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.55) inset, 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.4), 0 18px 36px rgba(40, 30, 20, 0.16);
+}
+:root[data-theme='dark'] .cust-hero {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6) inset, 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.5), 0 18px 36px rgba(0, 0, 0, 0.35);
+}
+.cust-hero-map {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.cust-hero-key {
+  font-size: 12px;
+  color: var(--glass-dim);
+}
+.cmap {
+  position: relative;
+  width: 100%;
+}
+.cmap svg {
+  display: block;
+  overflow: visible;
+}
+.cmap-now {
+  stroke: rgba(255, 230, 200, 0.28);
+  stroke-dasharray: 2 3;
+}
+.cmap-axis-name {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+.cmap-x-name {
+  position: absolute;
+  left: 44px;
+  bottom: -2px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: #9c8873;
+}
+.cmap-x-name b {
+  color: var(--amber);
+}
+.cmap-dot {
+  fill: var(--c);
+  stroke: rgba(20, 15, 10, 0.5);
+  stroke-width: 0.6;
+  cursor: pointer;
+  transition: opacity 0.35s var(--ease-out), fill-opacity 0.35s var(--ease-out);
+  animation: dotin 0.6s var(--ease-out) both;
+}
+.cmap-dot.on {
+  fill-opacity: 0.92;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c) 55%, transparent));
+}
+.cmap-dot.off {
+  fill-opacity: 0.2;
+  stroke-opacity: 0.3;
+}
+.cmap-dot:hover {
+  fill-opacity: 1;
+  stroke: #fff;
+  stroke-width: 1.4;
+}
+@keyframes dotin {
+  from {
+    opacity: 0;
+  }
+}
+.cmap-me-ring {
+  fill: none;
+  stroke: #fff6ea;
+  stroke-width: 2;
+}
+.cmap-me-pulse {
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: halo 2.2s ease-out infinite;
+}
+.cmap-tip-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+}
+.cmap-tip-seg i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.seg-legend {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+.segl {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto auto;
+  grid-template-areas: 'dot name name count' 'dot bar share share';
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 5px;
+  padding: 8px 12px 9px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--glass-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.25s var(--ease-out), transform 0.25s var(--ease-out);
+}
+.segl:hover,
+.segl:focus-visible {
+  background: rgba(255, 238, 214, 0.07);
+}
+.segl.on {
+  background: linear-gradient(150deg, rgba(255, 245, 230, 0.14), transparent 60%), rgba(255, 238, 214, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent);
+}
+.segl-dot {
+  grid-area: dot;
+  align-self: center;
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--c) 70%, transparent);
+}
+.segl-name {
+  grid-area: name;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.segl-count {
+  grid-area: count;
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--c);
+}
+.segl-bar {
+  grid-area: bar;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 238, 214, 0.1);
+  overflow: hidden;
+}
+.segl-bar b {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--c);
+  transition: width 0.6s var(--ease-out);
+}
+.segl-share {
+  grid-area: share;
+  font-size: 11.5px;
+  color: var(--glass-dim);
+}
+.cust-pane-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cust-pane-head h3 .segl-dot {
+  width: 12px;
+  height: 12px;
+}
+
+/* One customer's order rhythm. */
+.rhythm {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 6px;
+}
+.rhythm svg {
+  display: block;
+  overflow: visible;
+}
+.rhythm .axis {
+  fill: var(--text-dim);
+}
+.rhythm-past {
+  stroke: var(--amber-hot);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.rhythm-gap {
+  stroke: color-mix(in srgb, var(--text-dim) 60%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 3 4;
+}
+.rhythm-gap.late {
+  stroke: var(--seg-at-risk);
+}
+.rhythm-dot {
+  fill: var(--card-hi, #fffdf8);
+  stroke: var(--amber-hot);
+  stroke-width: 2.4;
+  animation: fade 0.4s both;
+  animation-delay: calc(var(--n, 0) * 60ms);
+}
+.rhythm-now {
+  fill: color-mix(in srgb, var(--text-dim) 50%, transparent);
+}
+.rhythm-now.late {
+  fill: var(--seg-at-risk);
+  filter: drop-shadow(0 0 5px var(--seg-at-risk));
+}
+.rhythm-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.rhythm-note.late {
+  color: color-mix(in srgb, var(--seg-at-risk) 75%, var(--text));
+  font-weight: 600;
+}
+@media (max-width: 900px) {
+  .cust-hero {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 20px 16px 16px;
+  }
+  .seg-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.cust-hero-map .anchor-chart-head {
+  display: grid;
+  gap: 2px;
+}
+.segl-share {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.cust-hero-map {
+  align-content: start;
+}
