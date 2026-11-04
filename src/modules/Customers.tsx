@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useApp } from '../state'
+import { useEffect, useMemo, useState } from 'react'
+import { jumpBox, useApp } from '../state'
 import { usePrint } from '../receipt'
 import { Details, Empty, Fig, Headline, Hint, Panel, Term } from '../ui/primitives'
 import { Heat } from '../charts/misc'
@@ -32,6 +32,12 @@ export function Customers() {
   }, [stats, currency])
   const ideas = useMemo(() => (idx && person ? suggestForCustomer(idx, person.id, 5) : []), [idx, person])
 
+  useEffect(() => {
+    const id = jumpBox.customer
+    if (!id || !stats.length) return
+    delete jumpBox.customer
+    if (stats.some((c) => c.id === id)) setWho(id)
+  }, [stats])
   const champions = segments.find((s) => s.id === 'champions')!
   const atRisk = segments.find((s) => s.id === 'at-risk')!
   const story = customerStory({ customers: stats.length, atRiskCustomers: atRisk.customers, atRiskShare: atRisk.share, champions: champions.customers })

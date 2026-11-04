@@ -90,6 +90,30 @@ function useFilterChips() {
   return { ds, chips, remove, clear: () => pickDims({}) }
 }
 
+/** A small transient confirmation, used when something happened with nothing visible to show for it. */
+export function Toast() {
+  const [msg, setMsg] = useState<string | null>(null)
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>
+    const on = (e: Event) => {
+      setMsg((e as CustomEvent).detail)
+      clearTimeout(t)
+      t = setTimeout(() => setMsg(null), 3200)
+    }
+    addEventListener('retailai-toast', on)
+    return () => {
+      removeEventListener('retailai-toast', on)
+      clearTimeout(t)
+    }
+  }, [])
+  if (!msg) return null
+  return (
+    <div className="toast" role="status">
+      {msg}
+    </div>
+  )
+}
+
 /** The filter button sits in the tab row right above the receipt, where it is hard to miss. */
 export function FilterCard({ open, onOpen, onClose }: { open: boolean; onOpen: () => void; onClose: () => void }) {
   const { ds, chips } = useFilterChips()
@@ -155,9 +179,33 @@ export function FilterChips({ onOpen }: { onOpen: () => void }) {
 }
 
 export function Utilities({ onUpload }: { onUpload: () => void }) {
-  const { setReport, report, theme, setTheme } = useApp()
+  const { setReport, report, theme, setTheme, source } = useApp()
+  const copyLink = () => {
+    navigator.clipboard
+      ?.writeText(location.href)
+      .then(() => dispatchEvent(new CustomEvent('retailai-toast', { detail: 'Link copied. It opens this store, period, filters and screen.' })))
+      .catch(() => dispatchEvent(new CustomEvent('retailai-toast', { detail: 'Copying was blocked; copy the address bar instead.' })))
+  }
   return (
     <div className="utils">
+      <button type="button" className="btn btn-metal btn-icon" onClick={() => dispatchEvent(new CustomEvent('retailai-palette'))} aria-label="Jump to anything" title="Jump to any screen, product, customer or filter. Shortcut: Ctrl+K">
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
+          <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+            <circle cx="8.5" cy="8.5" r="5" />
+            <path d="m12.5 12.5 4 4" />
+          </g>
+        </svg>
+      </button>
+      {source?.bundled && (
+        <button type="button" className="btn btn-metal btn-icon" onClick={copyLink} aria-label="Copy a link to this view" title="Copy a link that opens exactly this view: store, period, filters and screen">
+          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden>
+            <g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8.5 11.5a3 3 0 0 0 4.2 0l2.8-2.8a3 3 0 0 0-4.2-4.2l-1.2 1.2" />
+              <path d="M11.5 8.5a3 3 0 0 0-4.2 0l-2.8 2.8a3 3 0 0 0 4.2 4.2l1.2-1.2" />
+            </g>
+          </svg>
+        </button>
+      )}
       <button type="button" className={`btn btn-metal ${report ? 'on' : ''}`} aria-pressed={report} onClick={() => setReport(!report)} title="Open the printable report. Shortcut: P">
         Report
       </button>
@@ -190,6 +238,11 @@ export function useShortcuts(handlers: { filters: () => void; upload: () => void
   const { setModule, setReport, report } = useApp()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        dispatchEvent(new CustomEvent('retailai-palette'))
+        return
+      }
       const t = e.target as HTMLElement
       if (e.metaKey || e.ctrlKey || e.altKey || t.closest('input, textarea, select, [contenteditable], dialog[open]')) return
       const m = MODULES.find((x) => x.key === e.key)

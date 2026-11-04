@@ -5,8 +5,16 @@ import { parseCsvText } from './engine/load'
 import { filterRows, kpis, comparisons, weeklySeries, type Filters, type Kpis, type Comparison, type Week } from './engine/aggregate'
 import { guessCurrency, type Currency } from './format'
 import { SAMPLES, type Sample, type SampleId } from './samples'
+import { decodeView, encodeView } from './share'
+import { DIMENSIONS, type Dimension } from './engine/types'
 
 export type ModuleId = 'overview' | 'sales' | 'forecast' | 'customers' | 'products' | 'data'
+
+/** Set by the command palette just before switching screens; the target screen reads and clears it. */
+export const jumpBox: { product?: string; customer?: string } = {}
+
+/** The view a shared link asked for, applied once the sample it names has loaded. */
+let pendingView = typeof location !== 'undefined' ? decodeView(location.hash) : null
 
 export const MODULES: { id: ModuleId; label: string; key: string; hint: string }[] = [
   { id: 'overview', label: 'Overview', key: '1', hint: 'Headline numbers for the selected period' },
@@ -139,6 +147,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoading(null)
       setReport(false)
       setModuleRaw(bundled ? 'overview' : 'data')
+      if (bundled && pendingView) {
+        const pv = pendingView
+        pendingView = null
+        if (pv.from !== undefined && pv.to !== undefined) {
+          const from = Math.max(next.minDay, Math.min(pv.from, next.maxDay))
+          const to = Math.max(from, Math.min(pv.to, next.maxDay))
+          setFiltersRaw((f) => ({ ...f, from, to }))
+        }
+        if (pv.dims) {
+          const dims: Partial<Record<Dimension, string[]>> = {}
+          for (const d of DIMENSIONS) if (pv.dims[d]?.length) dims[d] = pv.dims[d]
+          if (Object.keys(dims).length) setFiltersRaw((f) => ({ ...f, dims }))
+        }
+        if (pv.compare === 'lastYear') setCompare('lastYear')
+        if (pv.module && MODULES.some((m) => m.id === pv.module)) setModuleRaw(pv.module as ModuleId)
+      }
     },
     [adopt],
   )
@@ -178,6 +202,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch {
       /* use the default */
     }
+    if (pendingView?.sample && SAMPLES.some((s) => s.id === pendingView!.sample)) first = pendingView.sample as SampleId
     loadSample(first)
   }, [loadSample])
 
@@ -216,6 +241,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addEventListener('popstate', back)
     return () => removeEventListener('popstate', back)
   }, [])
+
+  // The link always carries the current view of a sample store, so a refresh keeps your place
+  // and the address bar is always shareable. Views of uploaded files stay out of the link.
+  useEffect(() => {
+    if (!ds || !Number.isFinite(filters.from)) return
+    if (!source?.bundled) {
+      if (location.hash) history.replaceState(history.state, '', location.pathname + location.search)
+      return
+    }
+    const h = encodeView({ sample: source.sample, module, from: filters.from, to: filters.to, dims: filters.dims as Record<string, string[]>, compare })
+    history.replaceState(history.state, '', h ? `#${h}` : location.pathname + location.search)
+  }, [ds, source, module, filters, compare])
 
   const resetFilters = useCallback(() => {
     if (ds) setFilters({ from: ds.minDay, to: ds.maxDay, dims: {} })

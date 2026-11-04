@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PairWeb } from '../charts/misc'
 import { SearchBox } from '../ui/SearchBox'
-import { useApp } from '../state'
+import { jumpBox, useApp } from '../state'
 import { usePrint } from '../receipt'
 import { Details, Empty, Fig, Headline, Hint, Panel, SaveCsv } from '../ui/primitives'
 import { buildIndex, similarProducts, subcategoryAffinity, suggestFor, togetherWith, topPairs, type Suggestion } from '../engine/recommend'
@@ -37,6 +37,16 @@ export function Products() {
     return [...set].sort()
   }, [idx, cat])
   const pool = useMemo(() => (idx ? [...idx.products.values()].filter((p) => (!cat || p.category === cat) && (!sub || p.subcategory === sub)).sort((a, b) => b.net - a.net) : []), [idx, cat, sub])
+  useEffect(() => {
+    const id = jumpBox.product
+    if (!id || !idx) return
+    delete jumpBox.product
+    if (idx.products.has(id)) {
+      setCat('')
+      setSub('')
+      setPicked(id)
+    }
+  }, [idx])
   const seed = idx ? (picked && idx.products.has(picked) ? picked : (cat || sub) && pool[0] ? pool[0].id : idx.popular[0]) : undefined
   const searchItems = useMemo(() => pool.map((p) => ({ id: p.id, label: p.name, sub: p.subcategory, meta: money(p.net, currency) })), [pool, currency])
   const [hoverPair, setHoverPair] = useState<number | null>(null)

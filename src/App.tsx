@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { AppProvider, MODULES, useApp } from './state'
+import { Palette } from './ui/Palette'
 import { ReceiptProvider } from './receipt'
-import { DisplayBand, DropZone, FilterCard, FilterChips, FilterNotice, ReceiptPrinter, SamplePicker, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
+import { DisplayBand, DropZone, FilterCard, FilterChips, FilterNotice, Toast, ReceiptPrinter, SamplePicker, TicketRail, TuningBand, Utilities, useFileOpener, useShortcuts } from './ui/chassis'
 import { reducedMotion } from './ui/primitives'
 import { Overview } from './modules/Overview'
 import { Sales } from './modules/Sales'
@@ -206,6 +207,8 @@ function Console() {
         <TuningBand />
       </footer>
       <SamplePicker open={samplesOpen} onClose={() => setSamplesOpen(false)} onOpenFile={pick} />
+      <Palette onUpload={pick} onFilters={openFilters} onSamples={() => setSamplesOpen(true)} />
+      <Toast />
       <DropZone onFile={openFile} />
     </div>
   )

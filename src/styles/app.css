@@ -5623,3 +5623,136 @@ button.who-row.on::after {
   vertical-align: -2px;
   margin-right: 6px;
 }
+
+/* ================================================================ jump bar and toast */
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: color-mix(in srgb, #15110d 32%, transparent);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: fadein 0.2s both;
+}
+.palette {
+  position: fixed;
+  z-index: 81;
+  top: min(14vh, 120px);
+  left: 50%;
+  translate: -50% 0;
+  width: min(620px, calc(100vw - 24px));
+  max-height: min(66dvh, 560px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border-radius: 22px;
+  color: var(--chassis-ink);
+  background: linear-gradient(150deg, var(--lg-sheen), transparent 32%), linear-gradient(color-mix(in srgb, var(--paper) 82%, transparent), color-mix(in srgb, var(--paper) 82%, transparent));
+  -webkit-backdrop-filter: blur(30px) saturate(185%);
+  backdrop-filter: blur(30px) saturate(185%);
+  box-shadow: inset 0 1px 0 var(--lg-rim), inset 0 0 0 1px var(--lg-edge), 0 36px 70px rgba(30, 20, 10, 0.35);
+  overflow: hidden;
+  animation: popdown 0.28s var(--ease-out) both;
+}
+.palette-input {
+  margin: 12px 12px 8px;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15.5px;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--amber-hot) 55%, transparent);
+}
+.palette-input:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--amber-hot), 0 0 14px rgba(255, 140, 60, 0.3);
+}
+.palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px 12px 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 2px;
+}
+.palette-group {
+  display: block;
+  padding: 10px 10px 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--chassis-dim);
+}
+.palette-list button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--chassis-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.palette-list button.on {
+  background: color-mix(in srgb, var(--amber) 20%, transparent);
+}
+.palette-label {
+  font-weight: 550;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.palette-sub {
+  font-size: 12.5px;
+  color: var(--chassis-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45%;
+}
+.palette-empty {
+  padding: 14px 12px;
+  color: var(--chassis-dim);
+}
+.palette-foot {
+  display: flex;
+  gap: 16px;
+  padding: 9px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--chassis-ink) 10%, transparent);
+  font-size: 12px;
+  color: var(--chassis-dim);
+}
+.palette-foot kbd {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chassis-ink) 8%, transparent);
+  font: 11px 'Space Mono', ui-monospace, monospace;
+}
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+}
+.toast {
+  position: fixed;
+  z-index: 90;
+  left: 50%;
+  bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 110px));
+  translate: -50% 0;
+  max-width: min(480px, calc(100vw - 32px));
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--glass-ink);
+  font-size: 13.5px;
+  text-align: center;
+  box-shadow: 0 0 0 1px rgba(255, 173, 92, 0.35), 0 16px 34px rgba(0, 0, 0, 0.35);
+  animation: chipin 0.3s var(--ease-out) both;
+}
