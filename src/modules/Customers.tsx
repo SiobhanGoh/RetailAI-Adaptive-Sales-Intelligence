@@ -48,9 +48,15 @@ export function Customers() {
           title: 'Customer health',
           lines: [
             ...(rep.medianGapDays !== null ? [{ label: 'Days between orders', value: `${rep.medianGapDays.toFixed(0)} (median)` }] : []),
-            { label: 'At-risk share of sales', value: pct(atRisk.share, 0), tone: atRisk.customers ? 'down' : undefined },
+            { label: 'Bought more than once', value: pct(rep.repeatShare, 0) },
           ],
-          notes: [atRisk.customers ? atRisk.action : 'No regular buyer has gone quiet in this period.'],
+          notes: [
+            ...(atRisk.customers ? [`Win back the ${count(atRisk.customers)} at-risk customers: pick At risk, then Download all.`] : []),
+            ...(champions.customers ? [`Thank your ${count(champions.customers)} champions; ask for reviews.`] : []),
+            ...((segments.find((s) => s.id === 'new')?.customers ?? 0) > 0
+              ? [`Follow up with ${count(segments.find((s) => s.id === 'new')!.customers)} new customers${rep.medianGapDays !== null ? ` within ${rep.medianGapDays.toFixed(0)} days` : ''}.`]
+              : []),
+          ].slice(0, 2),
         }
       : null,
     `cu|${stats.length}|${filters.from}|${filters.to}|${currency}|${champions.customers}`,

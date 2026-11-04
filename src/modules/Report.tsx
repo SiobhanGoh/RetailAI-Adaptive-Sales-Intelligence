@@ -33,6 +33,11 @@ export function Report() {
     `rep|${k?.net}|${currency}|${filters.from}|${filters.to}`,
   )
   if (!ds || !k) return null
+  // At 52 weeks the previous period and the same period last year are the same days, so the
+  // report shows one column and says so. A comparison with no earlier data is left out.
+  const same = comps.length === 2 && comps[0].from === comps[1].from && comps[0].to === comps[1].to
+  const shownComps = (same ? [{ ...comps[0], label: 'previous period' }] : comps).filter((c) => c.kpis)
+  const missing = comps.filter((c) => !c.kpis).map((c) => c.label)
   const activeFilters = Object.entries(filters.dims).filter(([, v]) => v && v.length)
 
   return (
@@ -59,7 +64,7 @@ export function Report() {
             <tr>
               <th scope="col">Measure</th>
               <th scope="col" className="num">This period</th>
-              {comps.map((c) => (
+              {shownComps.map((c) => (
                 <th key={c.label} scope="col" className="num">vs {c.label}</th>
               ))}
             </tr>
@@ -74,8 +79,8 @@ export function Report() {
               <tr key={label}>
                 <th scope="row">{label}</th>
                 <td className="num">{f(v)}</td>
-                {comps.map((c) => (
-                  <td key={c.label} className="num">{c.kpis ? signedPct(pctChange(v, pick(c.kpis))) : 'not available'}</td>
+                {shownComps.map((c) => (
+                  <td key={c.label} className="num">{signedPct(pctChange(v, pick(c.kpis!)))}</td>
                 ))}
               </tr>
             ))}
@@ -83,11 +88,17 @@ export function Report() {
               <tr>
                 <th scope="row">Returns</th>
                 <td className="num">{money(k.returns, currency, 'whole')}</td>
-                {comps.map((c) => <td key={c.label} />)}
+                {shownComps.map((c) => <td key={c.label} />)}
               </tr>
             )}
           </tbody>
         </table>
+        {(same || missing.length > 0) && (
+          <p className="fine report-note">
+            {same ? 'For a 52-week period the previous period and the same period last year are the same weeks, so they are shown once. ' : ''}
+            {missing.length ? `No ${missing.join(' or ')} comparison: the data does not reach back that far.` : ''}
+          </p>
+        )}
       </section>
 
       {weeks.length > 1 && (

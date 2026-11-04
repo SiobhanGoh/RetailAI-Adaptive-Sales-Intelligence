@@ -71,10 +71,13 @@ export function Products() {
       ? {
           title: 'Product finder',
           lines: [
-            { label: 'Products sold', value: String(idx.products.size) },
             { label: 'Orders with 2+ items', value: `${(multiShare * 100).toFixed(0)}%` },
           ],
-          notes: [sampleId === 'superstore' ? 'These are ideas to browse, not predictions: on later orders in this sample, none beat plain best sellers.' : 'Lists come from shared orders and similar wording, not from a trained model.'],
+          notes: [
+            ...(together[0] ? [`Shelve or bundle it with ${shorten(together[0].name, 48)}: they share orders.`] : []),
+            ...(multiShare < 0.25 ? ['Lead with single-item offers: most orders here hold one product, so bundles may not move.'] : []),
+            sampleId === 'superstore' ? 'Treat the lists as ideas: on later orders here, none beat plain best sellers.' : 'Search any product above to see what sells with it.',
+          ],
         }
       : null,
     `pr|${seed}|${rows.length}|${currency}`,

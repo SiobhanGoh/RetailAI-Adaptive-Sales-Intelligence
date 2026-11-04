@@ -26,8 +26,9 @@ export function Data({ onOpen }: { onOpen: () => void }) {
           lines: [
             { label: 'Dates read as', value: ds.options.dateConvention === 'dmy' ? 'day/month/year' : 'month/day/year' },
             { label: 'Revenue from', value: ds.revenueSource === 'revenue' ? (ds.mapping.revenue ?? '') : ds.revenueSource },
+            { label: 'Stays in', value: 'this browser tab' },
           ],
-          notes: ['Nothing leaves this browser tab.'],
+          notes: [ds.quality.some((q) => q.level !== 'info') ? 'Check the column matching: some rows need a look.' : 'Open the Overview: every column needed is understood.'],
         }
       : null,
     `data|${ds?.rows.length}|${ds?.quality.length}|${JSON.stringify(ds?.mapping)}|${ds?.options.dateConvention}|${ds?.options.dropExactDuplicates}`,

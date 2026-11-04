@@ -42,7 +42,7 @@ function Welcome({ onOpen }: { onOpen: () => void }) {
 }
 
 export function Overview({ onOpen }: { onOpen: () => void }) {
-  const { ds, rows, k, activeComp, compare, setCompare, currency, weeks, filters, source } = useApp()
+  const { ds, rows, k, activeComp, comps, compare, setCompare, currency, weeks, filters, source } = useApp()
   const dims = ds?.capabilities.dimensions ?? []
   const mixDim = dims.includes('category') ? 'category' : dims[0]
   const mix = useMemo(() => (mixDim ? breakdown(rows, mixDim) : []), [rows, mixDim])
@@ -131,25 +131,24 @@ export function Overview({ onOpen }: { onOpen: () => void }) {
       ? null
       : salesStory(netChange, cl, mover ? { key: mover.key, delta: mover.delta, amount: `${mover.delta > 0 ? '+' : '−'}${money(Math.abs(mover.delta), currency)}` } : undefined, (k?.net ?? 0) - (c?.net ?? 0))
   const notes: string[] = []
-  if (story?.next) notes.push(`Next: ${story.next}`)
-  else if (latestAnomaly) notes.push('Next: open Shares and unusual weeks on the left for the details.')
-  if (mover && mover.delta !== 0 && !story?.sub) notes.push(`${mover.key} ${mover.delta > 0 ? 'grew' : 'fell'} the most: ${mover.delta > 0 ? '+' : '−'}${money(Math.abs(mover.delta), currency)} against the ${cl}.`)
-  if (latestAnomaly) notes.push(`Unusual week ending ${fmtDay(latestAnomaly.end)}: ${money(latestAnomaly.net, currency)} against a usual ${money(latestAnomaly.baseline, currency)}${latestAnomaly.drivers[0] ? `, mostly ${latestAnomaly.drivers[0].key}` : ''}.`)
+  if (story?.next) notes.push(story.next)
+  if (latestAnomaly) notes.push(`Look into the week ending ${fmtDay(latestAnomaly.end)}: ${money(latestAnomaly.net, currency)} against a usual ${money(latestAnomaly.baseline, currency)}.`)
   if (top20 !== undefined)
     notes.push(
       top20 >= 0.6
-        ? `The top 20% of products bring ${pct(top20, 0)} of sales, so their stock matters most.`
+        ? `Keep best sellers in stock: the top 20% bring ${pct(top20, 0)} of sales.`
         : top20 <= 0.4
-          ? `Sales are spread evenly: the top 20% of products bring only ${pct(top20, 0)}, so no small group carries the store.`
-          : `The top 20% of products bring ${pct(top20, 0)} of sales.`,
+          ? `Widen the range rather than pushing a few lines: sales are spread evenly, the top 20% of products bring only ${pct(top20, 0)}.`
+          : `Check stock on your best sellers: the top 20% of products bring ${pct(top20, 0)} of sales.`,
     )
+  if (!notes.length && mix[0]) notes.push(`Open Sales mix and pick ${mix[0].key} to see what drives it.`)
   usePrint(
     k && ds
       ? {
           title: 'What stands out',
           lines: [
             ...(k.returns < 0 ? [{ label: 'Returns', value: money(k.returns, currency, 'whole'), tone: 'down' as const }] : []),
-            ...(k.margin !== undefined ? [{ label: 'Margin', value: pct(k.margin) }] : []),
+            ...(k.margin !== undefined && k.profit === undefined ? [{ label: 'Margin', value: pct(k.margin) }] : []),
             { label: 'Unusual weeks', value: String(anomalies.length) },
           ],
           notes,
@@ -213,6 +212,7 @@ export function Overview({ onOpen }: { onOpen: () => void }) {
           )}
         </Headline>
         {hasDates && (
+          <div className="compare-wrap">
           <Segmented
             label="Compare with"
             value={compare}
@@ -223,6 +223,8 @@ export function Overview({ onOpen }: { onOpen: () => void }) {
             ]}
             size="sm"
           />
+          {comps.length === 2 && comps[0].from === comps[1].from && comps[0].to === comps[1].to && <span className="compare-same">For 52 weeks both are the same weeks.</span>}
+          </div>
         )}
       </header>
 

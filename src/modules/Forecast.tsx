@@ -74,11 +74,15 @@ export function Forecast() {
             { label: baseLabel, value: money(base, currency, 'whole') },
             { label: `Last ${H} weeks`, value: money(lastActual, currency, 'whole') },
             { label: 'Method', value: PLAIN_METHOD[result.chosen] },
-            { label: 'Usually within', value: `±${pct(chosenScore!.wape, 0)}` },
           ],
           notes: [
-            `Tested by replaying ${result.origins} past weeks. Treat the range as a guide, not a promise.`,
-            ...(actualAfter.length ? ['Your period ends before the data does, so the chart also shows what actually happened.'] : []),
+            ...((total - base) / Math.max(1, base) <= -0.1
+              ? [`Order less or run a promotion: ${pct(Math.abs((total - base) / Math.max(1, base)), 0)} below the ${baseLabel.toLowerCase()}.`]
+              : (total - base) / Math.max(1, base) >= 0.1
+                ? [`Stock up: ${pct((total - base) / Math.max(1, base), 0)} above the ${baseLabel.toLowerCase()}.`]
+                : [`Keep orders as they are: the outlook is close to the ${baseLabel.toLowerCase()}.`]),
+            ...(chosenScore && chosenScore.wape >= 0.35 ? ['Plan for the low end of the range: weeks here swing a lot.'] : []),
+            ...(actualAfter.length ? ['Compare with what happened next: your period ends before the data does, and the chart shows it.'] : []),
           ],
         }
       : null,

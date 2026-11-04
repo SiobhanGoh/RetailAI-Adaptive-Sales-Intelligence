@@ -84,11 +84,9 @@ export function Sales() {
             ...(ship ? [{ label: 'Median days to ship', value: String(ship.median) }] : []),
           ],
           notes: [
-            ...(shown.length > 1
-              ? shown[0].net >= 2 * Math.max(1, shown[shown.length - 1].net)
-                ? [`${shown[0].key} sells ${(shown[0].net / Math.max(1, shown[shown.length - 1].net)).toFixed(0)}× as much as ${shown[shown.length - 1].key}.`]
-                : [`The ${shown.length} groups are within ${((shown[0].share - shown[shown.length - 1].share) * 100).toFixed(0)} points of each other.`]
-              : []),
+            ...(active !== 'product' && shown[0] && !picked.length ? [`Pick ${shown[0].key} to see it on every screen.`] : []),
+            ...(bestCell ? [`Staff up for ${DAY_NAMES[bestCell.w]}s in ${MONTH_NAMES[bestCell.m]}, the busiest days.`] : []),
+            ...(shown.length > 3 && shown[shown.length - 1].share < 0.01 ? [`Review ${shown[shown.length - 1].key}: it brings under 1% of sales.`] : []),
           ],
         }
       : null,

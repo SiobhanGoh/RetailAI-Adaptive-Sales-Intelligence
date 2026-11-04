@@ -303,6 +303,9 @@ export function ReceiptPrinter() {
                 ))}
               </dl>
               {content.notes.length > 0 && (
+                <p className="paper-do">Do next</p>
+              )}
+              {content.notes.length > 0 && (
                 <ul className="paper-notes">
                   {content.notes.map((n) => (
                     <li key={n}>{n}</li>
