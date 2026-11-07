@@ -7,6 +7,7 @@ import { Details, Empty, Fig, Headline, Hint, Panel, SaveCsv, usePin } from '../
 import { buildIndex, similarProducts, subcategoryAffinity, suggestFor, togetherWith, topPairs, type Suggestion } from '../engine/recommend'
 import { downloadCsv, money, plural, shorten } from '../format'
 import evaluation from '../../verification/web_evaluation.json'
+import { PriceWhatIf } from './PriceWhatIf'
 
 function TagList({ items, empty, why }: { items: Suggestion[]; empty: string; why: (s: Suggestion) => string }) {
   if (!items.length) return <p className="quiet">{empty}</p>
@@ -170,6 +171,8 @@ export function Products() {
           <TagList items={similar} empty="No other product shares words with this one." why={(s) => `${Math.round(s.score * 100)}% word overlap`} />
         </Panel>
       </div>
+
+      <PriceWhatIf rows={rows} focus={info?.category} currency={currency} sampleId={sampleId} hasQuantity={!!ds?.capabilities.quantity} hasCategory={!!ds?.capabilities.dimensions.includes('category')} />
 
       <Details
         title="What sells together"

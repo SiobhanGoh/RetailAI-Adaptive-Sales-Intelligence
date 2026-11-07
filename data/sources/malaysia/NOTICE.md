@@ -20,7 +20,8 @@ invented ("Kedai Amber"), and no branch corresponds to a real premise.
 endorsement by KPDN or DOSM is implied.
 
 **Assumptions made by the generator, not taken from any source:** prices and margins by
-category, a 2% yearly price drift, weekday and payday effects, festival dates and uplifts (Chinese
+category, a 2% yearly price drift, how strongly each category's units respond to discounts (written to
+`data/kedai_amber_price_truth.json`), weekday and payday effects, festival dates and uplifts (Chinese
 New Year, Hari Raya Aidilfitri, Hari Raya Haji, Deepavali, Christmas) entered by hand for
 2023–2025, 11.11 and 12.12 online sale days, basket sizes, planted product pairs, member purchase
 rates and drop-off, the share of walk-in shoppers, and return rates. Check the festival dates

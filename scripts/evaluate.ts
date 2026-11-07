@@ -22,6 +22,7 @@ import { dayNumber, dayToISO } from '../src/engine/values'
 import { FORECASTERS, MODEL_LABEL, availableModels, backtest, bandOffsets, scorePairs, type BacktestPair, type ModelId } from '../src/engine/forecast'
 import { buildIndex, similarProducts, suggestFor, suggestForCustomer, type CustomerTier, type RecIndex, type Suggestion } from '../src/engine/recommend'
 import type { Row } from '../src/engine/types'
+import { elasticityBy, isEstimate } from '../src/engine/price'
 
 const SOURCE = 'data/superstore_sales.csv'
 const text = readFileSync(SOURCE, 'utf8')
@@ -325,6 +326,39 @@ function basketEval(train: Row[], test: Row[], strategies: Strategy[]) {
     result[o.id] = byH
   }
   out.band_coverage_other_samples = result
+}
+
+// ---------------------------------------------------------------- 6. price elasticity recovery
+// Kedai Amber is generated with a known elasticity per category (data/kedai_amber_price_truth.json),
+// so the estimator can be checked against the truth. The UK shop is real wholesale data where
+// bigger orders get lower unit prices, so its estimate is reported but marked as confounded.
+{
+  const truth = JSON.parse(readFileSync('data/kedai_amber_price_truth.json', 'utf8')).elasticity as Record<string, number>
+  const t = parseCsvText(readFileSync('data/kedai_amber_synthetic.csv', 'utf8'))
+  const d = buildDataset('kedai-amber', t.records, t.columns)
+  const groups = elasticityBy(d.rows, 'category').filter(isEstimate).map((e) => ({
+    category: e.group,
+    true_elasticity: truth[e.group],
+    estimate: +e.elasticity.toFixed(3),
+    range_95: [+e.lo.toFixed(3), +e.hi.toFixed(3)],
+    error: +(e.elasticity - truth[e.group]).toFixed(3),
+    truth_inside_range: truth[e.group] >= e.lo && truth[e.group] <= e.hi,
+    lines: e.lines,
+    products: e.products,
+  }))
+  const uk = parseCsvText(readFileSync('data/online_retail_ii_sample.csv', 'utf8'))
+  const ukEst = elasticityBy(buildDataset('online-retail', uk.records, uk.columns).rows, 'all')[0]
+  out.price_elasticity = {
+    protocol: 'Poisson pseudo-maximum likelihood of units per line on log(price paid), one effect per product (src/engine/price.ts). Kedai Amber truth comes from the generator, which was written before the estimator was run.',
+    kedai_amber: {
+      groups,
+      inside_range: `${groups.filter((g) => g.truth_inside_range).length} of ${groups.length}`,
+      mean_absolute_error: +(groups.reduce((a, g) => a + Math.abs(g.error), 0) / groups.length).toFixed(3),
+    },
+    uk_online_retail: isEstimate(ukEst)
+      ? { estimate: +ukEst.elasticity.toFixed(3), range_95: [+ukEst.lo.toFixed(3), +ukEst.hi.toFixed(3)], note: 'Confounded: unit price falls with order size (wholesale tiers), so this is not a price response.' }
+      : { unavailable: ukEst.reason },
+  }
 }
 
 mkdirSync('verification', { recursive: true })
