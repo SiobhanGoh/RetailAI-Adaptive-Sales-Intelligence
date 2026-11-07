@@ -137,11 +137,16 @@ Node 20 or newer. Keyboard: 1–6 switch screens, F filters, P report, U open a 
 - *GitHub Pages:* in repository Settings → Pages, set Source to "GitHub Actions". The included workflow then builds and deploys on every push to `main`.
 - *Cloudflare Pages:* connect the repository with build command `npm run build` and output directory `dist`.
 
+## Use it from any MCP client
+
+[`mcp/`](mcp/) turns the same engine into a [Model Context Protocol](https://modelcontextprotocol.io) server with eight read-only tools: dataset description, sales summary, forecast with its 80% range, price sensitivity, price what-if, product lookup and suggestions, and unusual weeks. Any MCP client can then answer questions like "what if Drinks go up 10%?" on a sample store or a local CSV, with the numbers coming from the tested engine rather than the model. Setup, step by step: [`mcp/README.md`](mcp/README.md).
+
 ## Repository layout
 
 ```text
 src/engine/       analytics engine (plain TypeScript, no UI): mapping, cleaning, aggregates,
-                  forecast, recommend, customers, anomalies
+                  forecast, price, recommend, customers, anomalies
+mcp/              MCP server over the engine, with its own smoke test
 src/modules/      the six screens and the report
 src/ui/, charts/  ticket rail, receipt printer, period strip, filters, charts
 test/             engine tests and a small synthetic messy fixture
