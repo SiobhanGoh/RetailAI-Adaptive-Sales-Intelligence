@@ -93,9 +93,9 @@ The UK sample has only 52 weeks, so its figures rest on 26 and 36 checks and mov
 | Category | True | Estimated | 95% range | Truth inside? |
 |---|---:|---:|---:|:---:|
 | Packaged goods | −1.20 | −1.13 | −1.21 to −1.05 | yes |
-| Fresh food | −0.60 | −0.55 | −0.65 to −0.45 | yes |
+| Fresh food | −0.60 | −0.55 | −0.64 to −0.45 | yes |
 | Convenience | −1.80 | −1.68 | −1.83 to −1.54 | yes |
-| Drinks | −1.50 | −1.41 | −1.60 to −1.23 | yes |
+| Drinks | −1.50 | −1.41 | −1.60 to −1.22 | yes |
 | Dry goods | −0.40 | −0.43 | −0.57 to −0.29 | yes |
 | Household and personal care | −1.00 | −1.25 | −1.51 to −0.98 | yes |
 | Milk and baby | −0.30 | −0.15 | −0.46 to 0.15 | yes |
