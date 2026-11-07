@@ -1,0 +1,33 @@
+{
+  "name": "retailai-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for the RetailAI sales engine: summaries, forecasts with calibrated bands, price sensitivity and what-ifs, product pairings and unusual weeks, on the bundled sample stores or your own CSV.",
+  "type": "module",
+  "bin": {
+    "retailai-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/index.js --packages=external",
+    "start": "node dist/index.js",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "engines": {
+    "node": ">=20.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.4.0",
+    "papaparse": "^5.7.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@types/node": "^26.6.6",
+    "@types/papaparse": "^5.5.2",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}
