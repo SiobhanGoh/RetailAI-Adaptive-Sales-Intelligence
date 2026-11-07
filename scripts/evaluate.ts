@@ -19,7 +19,7 @@ import { parseCsvText } from '../src/engine/load'
 import { buildDataset } from '../src/engine/clean'
 import { modelWeeks, weeklySeries } from '../src/engine/aggregate'
 import { dayNumber, dayToISO } from '../src/engine/values'
-import { FORECASTERS, MODEL_LABEL, availableModels, backtest, scorePairs, type ModelId } from '../src/engine/forecast'
+import { FORECASTERS, MODEL_LABEL, availableModels, backtest, bandOffsets, scorePairs, type BacktestPair, type ModelId } from '../src/engine/forecast'
 import { buildIndex, similarProducts, suggestFor, suggestForCustomer, type CustomerTier, type RecIndex, type Suggestion } from '../src/engine/recommend'
 import type { Row } from '../src/engine/types'
 
@@ -94,6 +94,25 @@ function isoWeek(day: number): number {
 }
 
 // ---------------------------------------------------------------- 2. forecast panel
+// Coverage of the app's 80% band (bandOffsets): offsets built from EARLY-origin errors only,
+// checked against LATE-origin actuals. The band method was fixed on an inner split of the
+// early origins before any late-origin coverage was read.
+function coverage(early: BacktestPair[], late: BacktestPair[], model: ModelId, H: number) {
+  let inside = 0, total = 0, width = 0, scale = 0
+  for (let h = 1; h <= H; h++) {
+    const off = bandOffsets(early, model, h) // all steps, as in the app (backtest runs to 12 weeks)
+    for (const p of late.filter((x) => x.model === model && x.h === h)) {
+      const lo = Math.max(0, p.pred + off.lo)
+      const hi = p.pred + off.hi
+      total++
+      if (p.actual >= lo && p.actual <= hi) inside++
+      width += hi - lo
+      scale += Math.abs(p.actual)
+    }
+  }
+  return { coverage_pct: +((inside / total) * 100).toFixed(1), width_pct: +((width / scale) * 100).toFixed(1), pairs: total }
+}
+
 {
   const series = modelWeeks(weeklySeries(ds.rows, ds.minDay, ds.maxDay)).map((w) => ({ end: w.end, y: w.net }))
   const models = availableModels(series.length)
@@ -112,6 +131,8 @@ function isoWeek(day: number): number {
       const pos = (s.length - 1) * p
       return s[Math.floor(pos)] + (s[Math.ceil(pos)] - s[Math.floor(pos)]) * (pos - Math.floor(pos))
     }
+    const band = coverage(early, late, chosen, H)
+    // Previous method (raw 10th/90th percentile per step), kept for comparison.
     let inside = 0
     let total = 0
     for (let h = 1; h <= H; h++) {
@@ -130,8 +151,10 @@ function isoWeek(day: number): number {
       early_origin_scores: earlyScores.map(fmt),
       late_origin_scores: lateScores.map(fmt),
       chosen_model_late_wape_pct: fmt(lateScores.find((s) => s.model === chosen)!).wape_pct,
-      band_80_coverage_on_late_origins_pct: +((inside / total) * 100).toFixed(1),
-      band_pairs: total,
+      band_80_coverage_on_late_origins_pct: band.coverage_pct,
+      band_80_mean_width_pct_of_sales: band.width_pct,
+      band_80_previous_method_coverage_pct: +((inside / total) * 100).toFixed(1),
+      band_pairs: band.pairs,
     }
   }
   out.forecast = {
@@ -273,6 +296,35 @@ function basketEval(train: Row[], test: Row[], strategies: Strategy[]) {
     chosen_on_validation: winner,
     test: evalCustomers(train, ds.rows.filter((r) => r.day > cutoff), [...new Set([winner, 'popular'])]),
   }
+}
+
+// ---------------------------------------------------------------- 5. band coverage on the other samples
+// Same early/late protocol as section 2, on the two other bundled samples, so the band claim
+// does not rest on one store.
+{
+  const others = [
+    { id: 'online-retail', file: 'data/online_retail_ii_sample.csv' },
+    { id: 'kedai-amber', file: 'data/kedai_amber_synthetic.csv' },
+  ]
+  const result: Record<string, unknown> = {}
+  for (const o of others) {
+    const t = parseCsvText(readFileSync(o.file, 'utf8'))
+    const d = buildDataset(o.id, t.records, t.columns)
+    const series = modelWeeks(weeklySeries(d.rows, d.minDay, d.maxDay)).map((w) => ({ end: w.end, y: w.net }))
+    const models = availableModels(series.length)
+    const { pairs } = backtest(series, models)
+    const ids = [...new Set(pairs.map((p) => p.origin))].sort((a, b) => a - b)
+    const mid = ids[Math.floor(ids.length / 2)]
+    const early = pairs.filter((p) => p.origin < mid)
+    const late = pairs.filter((p) => p.origin >= mid)
+    const byH: Record<string, unknown> = { weeks: series.length }
+    for (const H of [4, 12]) {
+      const chosen = models.map((m) => scorePairs(early, m, H)).sort((a, b) => a.wape - b.wape)[0].model
+      byH[`h${H}`] = { chosen_on_early_origins: chosen, ...coverage(early, late, chosen, H) }
+    }
+    result[o.id] = byH
+  }
+  out.band_coverage_other_samples = result
 }
 
 mkdirSync('verification', { recursive: true })
