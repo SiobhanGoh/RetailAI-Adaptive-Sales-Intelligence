@@ -32,9 +32,9 @@ export interface Elasticity {
   hi: number
   lines: number
   products: number
-  /** Share of lines sold more than 3% below the product's regular price that quarter. */
+  /** Share of lines sold more than 3% below the product's regular (highest) price that quarter. */
   belowUsualShare: number
-  /** Lowest and highest price seen, as a fraction of the regular price that quarter (5th / 95th percentile). */
+  /** Lowest and highest price actually paid, as a fraction of the regular price that quarter. */
   priceRange: { low: number; high: number }
 }
 
@@ -131,29 +131,30 @@ export function fitElasticity(obs: PriceObs[]): { elasticity: number; se: number
 }
 
 function usualPriceStats(obs: PriceObs[]) {
-  // Regular price = the product's 90th-percentile price paid within the same quarter, so
-  // discounts sit below it while slow price drift over the years does not.
+  // Regular price = the highest price paid for the product within the same quarter, so
+  // discounts sit below it while slow price drift over the years does not count as one.
   // Lines more than 3% below it count as reduced.
   const byKey = new Map<string, number[]>()
   for (const o of obs) {
     const key = `${o.product}\u0001${o.day === undefined || Number.isNaN(o.day) ? 0 : Math.floor(o.day / 91)}`
     ;(byKey.get(key) ?? byKey.set(key, []).get(key)!).push(Math.exp(o.x))
   }
-  const rel: number[] = []
   let below = 0
+  let low = 1
+  let high = 0
   for (const prices of byKey.values()) {
-    const sorted = [...prices].sort((a, b) => a - b)
-    const regular = sorted[Math.floor(0.9 * (sorted.length - 1))]
+    let regular = 0
+    for (const p of prices) if (p > regular) regular = p
     for (const p of prices) {
       const r = p / regular
-      rel.push(r)
       if (r < 0.97) below++
+      if (r < low) low = r
+      if (r > high) high = r
     }
   }
-  rel.sort((a, b) => a - b)
-  const q = (p: number) => rel[Math.min(rel.length - 1, Math.max(0, Math.floor(p * (rel.length - 1))))]
   const share = below / Math.max(1, obs.length)
-  return { belowShare: share, low: q(0.05), high: q(0.95), varyingShare: share }
+  // The true lowest and highest relative prices, so "outside anything seen" is literally true.
+  return { belowShare: share, low, high: high || 1, varyingShare: share }
 }
 
 /** One elasticity per value of `dim` (or one overall), with reasons where it can't be estimated. */
