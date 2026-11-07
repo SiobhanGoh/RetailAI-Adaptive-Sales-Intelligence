@@ -20,7 +20,7 @@ Version 2 replaces the earlier Streamlit prototype. What changed, and what is st
 | **Sales mix** | Sales by category, sub-category, region, segment, state, city or product (select a bar to filter everything), a weekday × month pattern, a concentration curve, margin when there is a profit column, shipping times. |
 | **Forecast** | 4, 8 or 12 weeks ahead for the whole store or one segment. Four models are replayed on past weeks; the lowest-error one is used and the 80% band comes from its past errors. If the period ends early, the chart also shows what actually happened. |
 | **Customers** | Recency × frequency grid, six named segments with suggested actions and CSV export, quarterly retention cohorts, and next-purchase ideas for any customer. |
-| **Products** | For any product: items bought in the same order, best sellers in its sub-category, and look-alikes by description. Repeated item pairs and sub-category pairs with lift. |
+| **Products** | For any product: items bought in the same order, best sellers in its sub-category, and look-alikes by description. Repeated item pairs and sub-category pairs with lift. A **price what-if**: drag a price change and see how units and sales would likely move, from each category's measured price sensitivity, with a range and a warning when the new price is outside anything in the data. |
 | **Data** | The detected column mapping (editable), date order, duplicate handling, currency, a quality report and how every number is made. |
 
 A printable **report** (save as PDF from the print dialog) collects the headline numbers, breakdowns, the 4-week outlook and segments for the current filters.
@@ -36,6 +36,9 @@ A printable **report** (save as PDF from the print dialog) collects the headline
 <img src="assets/screens/desktop-graphite.webp" width="49%" alt="The same console in the graphite finish" />
 <img src="assets/screens/desktop-kedai-amber.webp" width="49%" alt="Overview of the synthetic Malaysian grocer Kedai Amber, in RM with a margin ticket" />
 <img src="assets/screens/desktop-uk-products.webp" width="49%" alt="Products screen on the real UK gift shop data: items bought in the same invoices" />
+</p>
+<p align="center">
+<img src="assets/screens/desktop-price-whatif.webp" width="80%" alt="Price what-if on Kedai Amber: a swing tag set to minus 10 percent, units up 13 percent and sales up 2 percent, beside each category's price sensitivity with its range" />
 </p>
 
 ## How it works
@@ -81,9 +84,23 @@ The models sit within about 2 points of each other at 4 weeks, and the earlier-h
 | Later origins, 80% band coverage | 4 weeks ahead | 12 weeks ahead |
 |---|---:|---:|
 | UK online gift shop (52 weeks) | 92.3% | 75.0% |
-| Kedai Amber (156 weeks) | 91.9% | 87.6% |
+| Kedai Amber (156 weeks) | 94.2% | 88.1% |
 
 The UK sample has only 52 weeks, so its figures rest on 26 and 36 checks and move a lot with a few weeks.
+
+**Price sensitivity.** The price what-if fits, per category, how units on a line change with the price paid: a Poisson regression of units on log price with one effect per product (`src/engine/price.ts`), so it only learns from the same product selling at different prices, which here means discounts. Kedai Amber is generated with a known true sensitivity per category, written into the generator before the estimator was run, so the estimate can be checked against the truth on the full three years:
+
+| Category | True | Estimated | 95% range | Truth inside? |
+|---|---:|---:|---:|:---:|
+| Packaged goods | −1.20 | −1.13 | −1.21 to −1.05 | yes |
+| Fresh food | −0.60 | −0.55 | −0.64 to −0.45 | yes |
+| Convenience | −1.80 | −1.68 | −1.83 to −1.54 | yes |
+| Drinks | −1.50 | −1.41 | −1.60 to −1.22 | yes |
+| Dry goods | −0.40 | −0.43 | −0.57 to −0.29 | yes |
+| Household and personal care | −1.00 | −1.25 | −1.51 to −0.98 | yes |
+| Milk and baby | −0.30 | −0.15 | −0.46 to 0.15 | yes |
+
+The truth is inside the range for 7 of 7 categories (mean absolute error 0.107). Most estimates sit slightly closer to zero than the truth, probably because the generator's 2% yearly price drift is a price change shoppers in it do not react to. On simulated data with a known answer the estimate shows no measurable bias, and its 95% range covers the truth in at least 8 of 10 runs (`test/price.test.ts`). The UK gift shop gives −3.95, which is not a price response: bigger wholesale orders get a lower unit price there, and the app says so on that sample. Every price change in these files is a cut, so the app marks any price rise as guesswork.
 
 **Product suggestions.** The same basket-completion task as the archived Python test: train up to 6 April 2018, then for each known item in a later multi-item order, try to find the other items in that order (1,936 queries). Strategies were compared on a validation window inside the training period first.
 

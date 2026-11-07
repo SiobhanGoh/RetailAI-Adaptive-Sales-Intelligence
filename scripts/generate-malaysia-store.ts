@@ -27,6 +27,16 @@ function rand(): number {
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296
 }
+// A second, independent stream for the price response below. Keeping it separate means the
+// main stream (customers, baskets, discounts) draws exactly the same numbers as before.
+let respondState = (SEED ^ 0x9e3779b9) >>> 0
+function respondRand(): number {
+  respondState = (respondState + 0x6d2b79f5) >>> 0
+  let t = respondState
+  t = Math.imul(t ^ (t >>> 15), t | 1)
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+}
 const between = (a: number, b: number) => a + (b - a) * rand()
 const chance = (p: number) => rand() < p
 function pick<T>(items: T[], weights?: number[]): T {
@@ -263,6 +273,29 @@ const lines: Line[] = []
 let orderSeq = 0
 const priceOn = (it: Item, day: number) => it.price * Math.pow(1.02, (day - START) / 365) // ASSUMPTION: 2% yearly drift
 
+// ASSUMPTION: price elasticity of units per line, by group. A line sold at a fraction (1 − d) of
+// its shelf price buys (1 − d)^ε times as many units on average, so a 20% discount on a group
+// with ε = −1.5 lifts expected units by 0.8^−1.5 − 1 ≈ 40%. Staples respond little, snacks and
+// drinks a lot. These are the TRUE values the app's estimator is checked against
+// (npm run evaluate → price_elasticity), and they are also written to PRICE_TRUTH_OUT.
+const TRUE_ELASTICITY: Record<string, number> = {
+  'Dry goods': -0.4,
+  'Milk and baby': -0.3,
+  'Fresh food': -0.6,
+  'Household and personal care': -1.0,
+  'Packaged goods': -1.2,
+  Drinks: -1.5,
+  Convenience: -1.8,
+}
+const PRICE_TRUTH_OUT = 'data/kedai_amber_price_truth.json'
+/** Expected units scale by (1 − d)^ε; rounded up or down at random so the mean is exact. */
+function respondToDiscount(qty: number, discount: number, group: string): number {
+  if (!discount) return qty
+  const target = qty * Math.pow(1 - discount, TRUE_ELASTICITY[group])
+  const whole = Math.floor(target)
+  return whole + (respondRand() < target - whole ? 1 : 0)
+}
+
 function basket(day: number, format: string, online: boolean): { it: Item; qty: number }[] {
   const fest = festival(day)
   const mean = online ? 6.5 : format === 'Hypermarket' ? 7 : format === 'Supermarket' ? 4.6 : 2.6 // ASSUMPTION
@@ -294,10 +327,11 @@ function emit(day: number, branch: Branch, format: string, customer: string, onl
   const year = new Date(day * 86_400_000).getUTCFullYear()
   const id = `KA-${year}-${String(orderSeq).padStart(6, '0')}`
   const festive = festival(day).lift > 1
-  const rows = basket(day, format, online).map(({ it, qty }) => {
+  const rows = basket(day, format, online).map(({ it, qty: baseQty }) => {
     const unit = Math.round(priceOn(it, day) * 100) / 100
     // ASSUMPTION: about 15% of lines on promotion, 28% in the fortnight before a festival
     const discount = chance(festive ? 0.28 : 0.15) ? pick([0.1, 0.15, 0.2, 0.25, 0.3], [5, 4, 3, 1.5, 1]) : 0
+    const qty = respondToDiscount(baseQty, discount, it.group)
     const sales = Math.round(qty * unit * (1 - discount) * 100) / 100
     const cost = Math.round(qty * unit * (1 - it.margin) * 100) / 100
     return { it, qty, unit, discount, sales, cost }
@@ -352,3 +386,7 @@ const net = lines.reduce((a, l) => a + +l['Sales (RM)'], 0)
 console.log(`${lines.length.toLocaleString('en')} lines, ${orders.toLocaleString('en')} orders, ${returns} return lines, net RM ${net.toLocaleString('en', { maximumFractionDigits: 0 })}`)
 console.log(`${(Buffer.byteLength(csv) / 1e6).toFixed(1)} MB -> ${OUT}`)
 console.log(`sha256 ${createHash('sha256').update(readFileSync(OUT)).digest('hex')}`)
+writeFileSync(
+  PRICE_TRUTH_OUT,
+  JSON.stringify({ generated_by: 'scripts/generate-malaysia-store.ts', meaning: 'True price elasticity of units per line, by Category. Discounted lines buy (1 - discount)^elasticity times as many units on average.', elasticity: TRUE_ELASTICITY }, null, 2) + '\n',
+)

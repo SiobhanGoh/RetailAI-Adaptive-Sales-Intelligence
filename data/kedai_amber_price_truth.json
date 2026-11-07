@@ -1,0 +1,13 @@
+{
+  "generated_by": "scripts/generate-malaysia-store.ts",
+  "meaning": "True price elasticity of units per line, by Category. Discounted lines buy (1 - discount)^elasticity times as many units on average.",
+  "elasticity": {
+    "Dry goods": -0.4,
+    "Milk and baby": -0.3,
+    "Fresh food": -0.6,
+    "Household and personal care": -1,
+    "Packaged goods": -1.2,
+    "Drinks": -1.5,
+    "Convenience": -1.8
+  }
+}
