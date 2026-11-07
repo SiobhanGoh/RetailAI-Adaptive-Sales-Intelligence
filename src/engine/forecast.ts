@@ -244,12 +244,24 @@ export function scorePairs(pairs: BacktestPair[], model: ModelId, maxH: number):
   return { model, ...agg(own), n: own.length, byHorizon }
 }
 
-function quantile(sorted: number[], q: number): number {
-  if (!sorted.length) return 0
-  const pos = (sorted.length - 1) * q
-  const lo = Math.floor(pos)
-  const hi = Math.ceil(pos)
-  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)
+/**
+ * 80% band offsets for horizon step `h`, from past backtest errors of one model.
+ *
+ * Split-conformal with two choices fixed before scoring on held-out weeks:
+ *  - errors from the neighbouring steps (h-1, h, h+1) are pooled, so each band rests on about
+ *    three times as many past errors as a single step would give;
+ *  - the finite-sample correction: with n errors, the lower edge is the floor((n+1)·0.1)-th
+ *    smallest and the upper edge the ceil((n+1)·0.9)-th smallest, which widens small samples
+ *    slightly instead of trusting raw 10th/90th percentiles.
+ * Returns offsets to add to the point forecast.
+ */
+export function bandOffsets(pairs: BacktestPair[], model: ModelId, h: number): { lo: number; hi: number } {
+  const res = pairs.filter((p) => p.model === model && Math.abs(p.h - h) <= 1).map((p) => p.actual - p.pred).sort((a, b) => a - b)
+  const n = res.length
+  if (!n) return { lo: 0, hi: 0 }
+  const loRank = Math.max(1, Math.floor((n + 1) * 0.1))
+  const hiRank = Math.min(n, Math.ceil((n + 1) * 0.9))
+  return { lo: res[loRank - 1], hi: res[hiRank - 1] }
 }
 
 export interface BacktestCache {
@@ -273,12 +285,12 @@ export function runForecast(series: SeriesPoint[], horizon: number, cache?: Back
   const chosen = scores[0].model
   const preds = FORECASTERS[chosen](series, horizon)
   const forecast = preds.map((y, i) => {
-    const res = bt.pairs.filter((p) => p.model === chosen && p.h === i + 1).map((p) => p.actual - p.pred).sort((a, b) => a - b)
+    const off = bandOffsets(bt.pairs, chosen, i + 1)
     return {
       end: series[series.length - 1].end + 7 * (i + 1),
       y,
-      lo: clip(y + quantile(res, 0.1)),
-      hi: y + quantile(res, 0.9),
+      lo: clip(y + off.lo),
+      hi: y + off.hi,
     }
   })
   return { ok: true, models, scores, chosen, horizon, origins: bt.origins, forecast, pairs: bt.pairs, trainWeeks: series.length }

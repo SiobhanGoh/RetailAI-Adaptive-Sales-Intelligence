@@ -71,9 +71,19 @@ All figures below come from `npm run evaluate` (`scripts/evaluate.ts`), which wr
 | Nearest-neighbour (picked on earlier origins) | 33.8% | 36.9% |
 | Average of last 4 weeks | 34.3% | 35.1% |
 | Same week last year | 34.8% | 34.3% |
-| 80% band coverage of the picked model | 69.5% | 57.2% |
+| 80% band coverage of the picked model | 71.2% | 68.6% |
+| (previous band method, for comparison) | (69.5%) | (57.2%) |
 
-The models sit within about 2 points of each other at 4 weeks, the earlier-half pick was not the later-half winner, and the bands are too narrow. The app says this next to the forecast on the sample store.
+The models sit within about 2 points of each other at 4 weeks, and the earlier-half pick was not the later-half winner. The app says this next to the forecast on the sample store.
+
+**Forecast bands.** The 80% band is split-conformal: past backtest errors from the neighbouring steps (h−1, h, h+1) are pooled, and the edges use the finite-sample ranks ⌊(n+1)·0.1⌋ and ⌈(n+1)·0.9⌉ instead of raw percentiles (`bandOffsets` in `src/engine/forecast.ts`). The method was chosen on an inner split of the earlier origins, where it was the only candidate to reach 80% on all three samples, and only then scored once on the later origins. It raises Superstore coverage from 57.2% to 68.6% at 12 weeks, but is still short of 80% there: Superstore's later weeks are noisier than its earlier ones, so errors learned from the past understate them. On the other two samples, with the same protocol:
+
+| Later origins, 80% band coverage | 4 weeks ahead | 12 weeks ahead |
+|---|---:|---:|
+| UK online gift shop (52 weeks) | 92.3% | 75.0% |
+| Kedai Amber (156 weeks) | 91.9% | 87.6% |
+
+The UK sample has only 52 weeks, so its figures rest on 26 and 36 checks and move a lot with a few weeks.
 
 **Product suggestions.** The same basket-completion task as the archived Python test: train up to 6 April 2018, then for each known item in a later multi-item order, try to find the other items in that order (1,936 queries). Strategies were compared on a validation window inside the training period first.
 

@@ -5,7 +5,7 @@ import { buildDataset } from '../src/engine/clean'
 import { parseCsvText } from '../src/engine/load'
 import { parseDay, parseNumber, dayToISO, detectDateConvention } from '../src/engine/values'
 import { kpis, modelWeeks, weeklySeries, filterRows, comparisons } from '../src/engine/aggregate'
-import { FORECASTERS, runForecast, type SeriesPoint } from '../src/engine/forecast'
+import { FORECASTERS, bandOffsets, runForecast, type BacktestPair, type SeriesPoint } from '../src/engine/forecast'
 import { buildIndex, suggestFor, similarProducts, suggestForCustomer } from '../src/engine/recommend'
 import { customerStats, cohorts } from '../src/engine/customers'
 import { findAnomalies } from '../src/engine/anomalies'
@@ -134,6 +134,17 @@ describe('forecasting', () => {
       expect(p.lo).toBeLessThanOrEqual(p.y)
       expect(p.hi).toBeGreaterThanOrEqual(p.y)
     }
+  })
+
+  it('builds conformal band offsets from pooled neighbouring-step errors', () => {
+    // 9 errors at h=2 (−4..4) plus one far outlier at h=5 that must not be pooled into h=2.
+    const pairs: BacktestPair[] = [-4, -3, -2, -1, 0, 1, 2, 3, 4].map((e, i) => ({ model: 'recent', origin: i, h: 2, actual: 100 + e, pred: 100 }))
+    pairs.push({ model: 'recent', origin: 0, h: 5, actual: 900, pred: 100 })
+    // n = 9: lower rank floor(10·0.1) = 1 → −4; upper rank ceil(10·0.9) = 9 → +4.
+    expect(bandOffsets(pairs, 'recent', 2)).toEqual({ lo: -4, hi: 4 })
+    // h=1 pools h=1 and h=2 only; other models are ignored.
+    expect(bandOffsets(pairs, 'recent', 1)).toEqual({ lo: -4, hi: 4 })
+    expect(bandOffsets(pairs, 'knn', 2)).toEqual({ lo: 0, hi: 0 })
   })
 
   it('refuses short or sparse histories with a reason', () => {

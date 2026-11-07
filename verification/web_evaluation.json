@@ -148,7 +148,9 @@
         }
       ],
       "chosen_model_late_wape_pct": 33.76,
-      "band_80_coverage_on_late_origins_pct": 69.5,
+      "band_80_coverage_on_late_origins_pct": 71.2,
+      "band_80_mean_width_pct_of_sales": 90.7,
+      "band_80_previous_method_coverage_pct": 69.5,
       "band_pairs": 118
     },
     "h12": {
@@ -335,7 +337,9 @@
         }
       ],
       "chosen_model_late_wape_pct": 36.9,
-      "band_80_coverage_on_late_origins_pct": 57.2,
+      "band_80_coverage_on_late_origins_pct": 68.6,
+      "band_80_mean_width_pct_of_sales": 82.7,
+      "band_80_previous_method_coverage_pct": 57.2,
       "band_pairs": 306
     },
     "final_forecast_first_4_weeks": {
@@ -482,6 +486,38 @@
         "popular": {
           "hit_rate_at_5_pct": 2.18
         }
+      }
+    }
+  },
+  "band_coverage_other_samples": {
+    "online-retail": {
+      "weeks": 52,
+      "h4": {
+        "chosen_on_early_origins": "recent",
+        "coverage_pct": 92.3,
+        "width_pct": 61.1,
+        "pairs": 26
+      },
+      "h12": {
+        "chosen_on_early_origins": "recent",
+        "coverage_pct": 75,
+        "width_pct": 55.5,
+        "pairs": 36
+      }
+    },
+    "kedai-amber": {
+      "weeks": 156,
+      "h4": {
+        "chosen_on_early_origins": "recent",
+        "coverage_pct": 91.9,
+        "width_pct": 82.1,
+        "pairs": 86
+      },
+      "h12": {
+        "chosen_on_early_origins": "recent",
+        "coverage_pct": 87.6,
+        "width_pct": 66.9,
+        "pairs": 210
       }
     }
   }
