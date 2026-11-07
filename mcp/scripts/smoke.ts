@@ -76,6 +76,13 @@ const badPath = await call('retailai_describe_dataset', { dataset: 'relative/fil
 assert.equal(badPath.isError, true)
 const badArg = await call('retailai_forecast', { dataset: 'kedai-amber', weeks: 99 })
 assert.equal(badArg.isError, true)
+const dir = await call('retailai_describe_dataset', { dataset: '/tmp/claude-0/-home-claude/4cc9be20-6c2f-5e0e-9c22-fa9e0799bf33/scratchpad/dir.csv' })
+assert.equal(dir.isError, true)
+// date_order is accepted by every tool, not only describe.
+ok(await call('retailai_sales_summary', { dataset: 'superstore', date_order: 'dmy', limit: 1 }))
+// A deep cut that really happened in the data is not flagged; a rise is.
+const deep = ok(await call('retailai_price_what_if', { dataset: 'kedai-amber', group: 'Drinks', price_change_pct: -25 }))
+assert.equal(deep.outside_prices_seen, false)
 
 await client.close()
 console.error('Smoke test passed')

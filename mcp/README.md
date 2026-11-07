@@ -1,6 +1,6 @@
 # retailai-mcp-server
 
-The RetailAI sales engine as a [Model Context Protocol](https://modelcontextprotocol.io) server. An AI assistant or IDE that speaks MCP can then answer questions about a sales file by calling the same, tested code the web app uses, instead of guessing numbers.
+The RetailAI sales engine as a [Model Context Protocol](https://modelcontextprotocol.io) server. Any app or IDE that speaks MCP can then answer questions about a sales file by calling the same, tested code the web app uses, instead of guessing numbers.
 
 > "Forecast Drinks for the next 8 weeks." "What happens to units if Convenience goes up 10%?" "Which weeks in 2025 were unusual, and why?"
 
@@ -19,7 +19,7 @@ Everything runs on your machine. Files are read locally; nothing is uploaded.
 | `retailai_product_suggestions` | What sells in the same orders, best sellers nearby, look-alikes |
 | `retailai_unusual_weeks` | Weeks far above or below the 13 before them, with what drove them |
 
-Every tool is read-only and takes `dataset`: a bundled sample (`kedai-amber`, `online-retail`, `superstore`) or an absolute path to your own `.csv`/`.tsv`. Column names do not need to match exactly; they are detected the same way as in the app.
+Every tool is read-only and takes `dataset`: a bundled sample (`kedai-amber`, `online-retail`, `superstore`) or an absolute path to your own `.csv`, `.tsv` or `.txt` export. If dates like 03/04/2024 are ambiguous, pass `date_order` (`dmy` or `mdy`) to every tool you call. Column names do not need to match exactly; they are detected the same way as in the app.
 
 ## Set it up, step by step
 

@@ -28,7 +28,10 @@ const datasetArg = z
   .min(1)
   .describe(`Which sales data to use: a bundled sample (${SAMPLE_IDS.map((s) => `"${s}"`).join(', ')}) or an absolute path to a CSV/TSV export on this machine.`)
 
+const dateOrderArg = z.enum(['dmy', 'mdy']).optional().describe('Only for your own CSV when dates like 03/04/2024 are ambiguous: day-month-year or month-day-year. Pass the same value to every tool.')
+
 const filterArgs = {
+  date_order: dateOrderArg,
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('First day to include, YYYY-MM-DD. Default: the first day in the data.'),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Last day to include, YYYY-MM-DD. Default: the last day in the data.'),
   where: z
@@ -85,7 +88,7 @@ function createServer(): McpServer {
       description: `Load a sales dataset and say what is in it: rows, date range, which columns were recognised (revenue, quantity, product, customer, category...), what the engine can do with it, data-quality notes, and the values of each dimension (categories, regions, states...) for use as filters.
 
 Call this first with a new file. Example: dataset="kedai-amber".`,
-      inputSchema: z.strictObject({ dataset: datasetArg, date_order: z.enum(['dmy', 'mdy']).optional().describe('Only for your own CSV when dates like 03/04/2024 are ambiguous: day-month-year or month-day-year.') }),
+      inputSchema: z.strictObject({ dataset: datasetArg, date_order: dateOrderArg }),
       annotations: READ_ONLY,
     },
     async ({ dataset, date_order }) => {
@@ -128,8 +131,8 @@ Examples:
       }),
       annotations: READ_ONLY,
     },
-    async ({ dataset, from, to, where, by, limit }) => {
-      const ds = await loadDataset(dataset)
+    async ({ dataset, date_order, from, to, where, by, limit }) => {
+      const ds = await loadDataset(dataset, date_order)
       const { rows, f } = applyFilters(ds, { from, to, where })
       const k = kpis(rows)
       const comps = comparisons(ds, f).map((c) => ({
@@ -173,8 +176,8 @@ Needs at least 30 complete weeks. Example: "next 8 weeks of Drinks" -> weeks=8, 
       inputSchema: z.strictObject({ dataset: datasetArg, ...filterArgs, weeks: z.number().int().min(1).max(MAX_H).default(4).describe('How many weeks ahead.') }),
       annotations: READ_ONLY,
     },
-    async ({ dataset, from, to, where, weeks }) => {
-      const ds = await loadDataset(dataset)
+    async ({ dataset, date_order, from, to, where, weeks }) => {
+      const ds = await loadDataset(dataset, date_order)
       if (!ds.capabilities.dates) throw new Error('This dataset has no order date column, so it cannot be forecast.')
       const { rows, f } = applyFilters(ds, { from, to, where })
       const series = modelWeeks(weeklySeries(rows, f.from, f.to)).map((w) => ({ end: w.end, y: w.net }))
@@ -202,8 +205,8 @@ Use retailai_price_what_if to turn one group's sensitivity into a projected chan
       inputSchema: z.strictObject({ dataset: datasetArg, ...filterArgs, by: z.enum(['category', 'subcategory', 'all']).default('category') }),
       annotations: READ_ONLY,
     },
-    async ({ dataset, from, to, where, by }) => {
-      const ds = await loadDataset(dataset)
+    async ({ dataset, date_order, from, to, where, by }) => {
+      const ds = await loadDataset(dataset, date_order)
       if (!ds.capabilities.quantity) throw new Error('This dataset has no quantity column, so price sensitivity cannot be measured. It needs units sold per line.')
       if (by !== 'all' && !ds.capabilities.dimensions.includes(by)) throw new Error(`This dataset has no ${by} column. Try by="all".`)
       const { rows } = applyFilters(ds, { from, to, where })
@@ -239,8 +242,8 @@ Example: "What if Drinks go up 10%?" -> group="Drinks", price_change_pct=10.`,
       }),
       annotations: READ_ONLY,
     },
-    async ({ dataset, from, to, where, group, by, price_change_pct }) => {
-      const ds = await loadDataset(dataset)
+    async ({ dataset, date_order, from, to, where, group, by, price_change_pct }) => {
+      const ds = await loadDataset(dataset, date_order)
       if (!ds.capabilities.quantity) throw new Error('This dataset has no quantity column, so a price what-if is not possible.')
       const { rows } = applyFilters(ds, { from, to, where })
       const all = elasticityBy(rows, by)
@@ -249,8 +252,19 @@ Example: "What if Drinks go up 10%?" -> group="Drinks", price_change_pct=10.`,
       if (!isEstimate(e)) throw new Error(`${group}: ${e.reason}`)
       const w = whatIf(e, price_change_pct / 100)
       const inGroup = rows.filter((r) => (by === 'all' || r[by] === group) && r.revenue > 0 && (r.qty ?? 0) > 0)
-      const days = Math.max(1, Math.max(...inGroup.map((r) => r.day)) - Math.min(...inGroup.map((r) => r.day)) + 1)
-      const perWeek = { units: (inGroup.reduce((a, r) => a + (r.qty ?? 0), 0) / days) * 7, sales: (inGroup.reduce((a, r) => a + r.revenue, 0) / days) * 7 }
+      // A loop, not Math.max(...array): spreading a large file's rows overflows the call stack.
+      let first = Infinity
+      let last = -Infinity
+      let units = 0
+      let sales = 0
+      for (const r of inGroup) {
+        if (r.day < first) first = r.day
+        if (r.day > last) last = r.day
+        units += r.qty ?? 0
+        sales += r.revenue
+      }
+      const days = Math.max(1, last - first + 1)
+      const perWeek = { units: (units / days) * 7, sales: (sales / days) * 7 }
       const m = (x: { mid: number; lo: number; hi: number }) => ({ change_pct: round((x.mid - 1) * 100, 1), range_pct: [round((x.lo - 1) * 100, 1), round((x.hi - 1) * 100, 1)] })
       return jsonResult({
         group,
@@ -271,11 +285,11 @@ Example: "What if Drinks go up 10%?" -> group="Drinks", price_change_pct=10.`,
     {
       title: 'Find products by name',
       description: 'Search product names (case-insensitive, all words must match) and return ids with sales and orders, best sellers first. Use the id with retailai_product_suggestions. Example: query="milo".',
-      inputSchema: z.strictObject({ dataset: datasetArg, query: z.string().min(2).max(100).describe('Words to look for in product names.'), limit: z.number().int().min(1).max(50).default(10) }),
+      inputSchema: z.strictObject({ dataset: datasetArg, date_order: dateOrderArg, query: z.string().min(2).max(100).describe('Words to look for in product names.'), limit: z.number().int().min(1).max(50).default(10) }),
       annotations: READ_ONLY,
     },
-    async ({ dataset, query, limit }) => {
-      const ds = await loadDataset(dataset)
+    async ({ dataset, date_order, query, limit }) => {
+      const ds = await loadDataset(dataset, date_order)
       if (!ds.capabilities.products) throw new Error('This dataset has no product column.')
       const idx = buildIndex(ds.rows)
       const words = query.toLowerCase().split(/\s+/).filter(Boolean)
@@ -290,11 +304,11 @@ Example: "What if Drinks go up 10%?" -> group="Drinks", price_change_pct=10.`,
     {
       title: 'What sells with a product',
       description: 'For one product id: items bought in the same orders (with how many orders), best sellers in its sub-category, and look-alikes by description. Find ids with retailai_find_products.',
-      inputSchema: z.strictObject({ dataset: datasetArg, product_id: z.string().min(1), limit: z.number().int().min(1).max(20).default(5) }),
+      inputSchema: z.strictObject({ dataset: datasetArg, date_order: dateOrderArg, product_id: z.string().min(1), limit: z.number().int().min(1).max(20).default(5) }),
       annotations: READ_ONLY,
     },
-    async ({ dataset, product_id, limit }) => {
-      const ds = await loadDataset(dataset)
+    async ({ dataset, date_order, product_id, limit }) => {
+      const ds = await loadDataset(dataset, date_order)
       const idx = buildIndex(ds.rows)
       const info = idx.products.get(product_id)
       if (!info) throw new Error(`No product with id "${product_id}". Use retailai_find_products to look it up by name.`)
@@ -316,8 +330,8 @@ Example: "What if Drinks go up 10%?" -> group="Drinks", price_change_pct=10.`,
       inputSchema: z.strictObject({ dataset: datasetArg, ...filterArgs, limit: z.number().int().min(1).max(50).default(10) }),
       annotations: READ_ONLY,
     },
-    async ({ dataset, from, to, where, limit }) => {
-      const ds = await loadDataset(dataset)
+    async ({ dataset, date_order, from, to, where, limit }) => {
+      const ds = await loadDataset(dataset, date_order)
       // Use earlier weeks as the baseline even when "from" is set, then keep only flagged weeks in range.
       const { f } = applyFilters(ds, { from, to, where })
       const rows = filterRows(ds.rows, { ...f, from: ds.minDay })

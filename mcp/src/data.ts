@@ -19,6 +19,7 @@ const SAMPLES: Record<string, { file: string; name: string; dateConvention?: Dat
 export const SAMPLE_IDS = Object.keys(SAMPLES)
 
 const MAX_BYTES = 200 * 1024 * 1024
+const MAX_CACHED = 4
 const cache = new Map<string, { mtime: number; ds: Dataset }>()
 
 export async function loadDataset(dataset: string, dateOrder?: DateConvention): Promise<Dataset> {
@@ -32,6 +33,7 @@ export async function loadDataset(dataset: string, dateOrder?: DateConvention): 
   } catch {
     throw new Error(sample ? `Sample file not found at ${path}. Run the server from a full RetailAI checkout.` : `No file at ${path}. Check the path.`)
   }
+  if (!info.isFile()) throw new Error(`${path} is not a file. Give the path to a CSV/TSV file.`)
   if (info.size > MAX_BYTES) throw new Error(`The file is ${(info.size / 1e6).toFixed(0)} MB; the limit is ${MAX_BYTES / 1e6} MB.`)
   const key = `${path}\u0001${dateOrder ?? sample?.dateConvention ?? ''}`
   const hit = cache.get(key)
@@ -40,6 +42,9 @@ export async function loadDataset(dataset: string, dateOrder?: DateConvention): 
   const convention = dateOrder ?? sample?.dateConvention
   const ds = buildDataset(sample?.name ?? path, table.records, table.columns, convention ? { options: { dateConvention: convention } } : undefined)
   if (!ds.rows.length) throw new Error(`No usable rows in ${path}. ${ds.quality.map((q) => q.text).join(' ')}`)
+  // Keep only the most recently used few datasets in memory.
+  cache.delete(key)
   cache.set(key, { mtime: info.mtimeMs, ds })
+  while (cache.size > MAX_CACHED) cache.delete(cache.keys().next().value!)
   return ds
 }
